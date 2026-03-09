@@ -3,11 +3,18 @@ import { SYSTEM_INSTRUCTION } from '../constants';
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
-if (!apiKey) {
-  console.error('VITE_GEMINI_API_KEY is not defined. Please set it in your environment variables.');
-}
+let aiInstance: GoogleGenAI | null = null;
 
-const ai = new GoogleGenAI({ apiKey: apiKey || '' });
+function getAI() {
+  if (!aiInstance) {
+    if (!apiKey) {
+      console.warn('VITE_GEMINI_API_KEY is not defined. Please set it in your environment variables.');
+      return null;
+    }
+    aiInstance = new GoogleGenAI({ apiKey });
+  }
+  return aiInstance;
+}
 
 export interface GenerateOptions {
   model: 'gemini-3-flash-preview' | 'gemini-3.1-pro-preview';
@@ -20,7 +27,8 @@ export const generateResponseStream = async function*(
   currentImage: { data: string, mimeType: string } | null,
   options: GenerateOptions = { model: 'gemini-3-flash-preview', thinkingMode: false, isImageGeneration: false }
 ) {
-  if (!apiKey) {
+  const ai = getAI();
+  if (!ai) {
     throw new Error('API key is missing. Please configure VITE_GEMINI_API_KEY in your environment.');
   }
 
