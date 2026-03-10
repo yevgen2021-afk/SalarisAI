@@ -3,7 +3,7 @@ import localforage from 'localforage';
 import { ArrowUp, Menu, Settings, Moon, Sun, Trash2, Info, X, SquarePen, Plus, Paintbrush, ChevronLeft, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Chat, Message } from './types';
-import { generateResponseStream } from './services/gemini';
+import { generateResponseStream, getApiKey } from './services/gemini';
 import ChatMessage from './components/ChatMessage';
 import Dashboard from './components/Dashboard';
 import Sidebar from './components/Sidebar';
@@ -427,7 +427,9 @@ export default function App() {
       if (error instanceof Error) {
         errorText = error.message;
         if (errorText.includes('429') || errorText.includes('quota') || errorText.includes('RESOURCE_EXHAUSTED')) {
-          errorText = 'Превышен лимит запросов к API Google (Quota Exceeded). Пожалуйста, подождите (лимиты сбрасываются) или проверьте ваш аккаунт Google AI Studio.';
+          const key = getApiKey();
+          const maskedKey = key ? `${key.substring(0, 8)}...` : 'отсутствует';
+          errorText = `Превышен лимит запросов к API Google (Quota Exceeded). Пожалуйста, подождите (лимиты сбрасываются) или проверьте ваш аккаунт Google AI Studio. (Используется ключ: ${maskedKey})`;
         } else if (errorText.includes('{')) {
           try {
             // Attempt to extract a cleaner message if it's JSON
@@ -578,7 +580,9 @@ export default function App() {
       if (error instanceof Error) {
         errorText = error.message;
         if (errorText.includes('429') || errorText.includes('quota') || errorText.includes('RESOURCE_EXHAUSTED')) {
-          errorText = 'Превышен лимит запросов к API Google (Quota Exceeded). Пожалуйста, подождите (лимиты сбрасываются) или проверьте ваш аккаунт Google AI Studio.';
+          const key = getApiKey();
+          const maskedKey = key ? `${key.substring(0, 8)}...` : 'отсутствует';
+          errorText = `Превышен лимит запросов к API Google (Quota Exceeded). Пожалуйста, подождите (лимиты сбрасываются) или проверьте ваш аккаунт Google AI Studio. (Используется ключ: ${maskedKey})`;
         } else if (errorText.includes('{')) {
           try {
             const match = errorText.match(/"message":\s*"([^"]+)"/);

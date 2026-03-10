@@ -2,7 +2,7 @@ import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 import { SYSTEM_INSTRUCTION } from '../constants';
 
 // Get API key from process.env (injected by Vite config or AI Studio)
-const getApiKey = () => {
+export const getApiKey = () => {
   // 1. Try standard Vite environment variable (Best for Vercel)
   try {
     if (import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) {
