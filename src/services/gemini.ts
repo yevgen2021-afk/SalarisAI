@@ -1,13 +1,28 @@
 import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 import { SYSTEM_INSTRUCTION } from '../constants';
 
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+// Get API key from Vite env vars, or fallback to process.env (for AI Studio preview)
+const getApiKey = () => {
+  if (typeof import.meta !== 'undefined' && import.meta.env) {
+    if (import.meta.env.VITE_GEMINI_API_KEY) return import.meta.env.VITE_GEMINI_API_KEY;
+  }
+  if (typeof process !== 'undefined' && process.env) {
+    if (process.env.GEMINI_API_KEY) return process.env.GEMINI_API_KEY;
+    if (process.env.API_KEY) return process.env.API_KEY;
+    if (process.env.GOOGLE_API_KEY) return process.env.GOOGLE_API_KEY;
+  }
+  return '';
+};
+
+const apiKey = getApiKey();
 
 if (!apiKey) {
-  console.warn("Ключ VITE_GEMINI_API_KEY не найден");
+  console.warn("Ключ VITE_GEMINI_API_KEY или GEMINI_API_KEY не найден");
 }
 
-const ai = new GoogleGenAI({ apiKey: apiKey || '' });
+// We instantiate the AI client dynamically inside the function to ensure it picks up the latest key
+// if it's somehow injected later, but we keep a fallback instance just in case.
+let ai = new GoogleGenAI({ apiKey: apiKey || 'dummy-key' });
 
 export interface GenerateOptions {
   model: 'gemini-3-flash-preview' | 'gemini-3.1-pro-preview';
@@ -20,9 +35,14 @@ export const generateResponseStream = async function*(
   currentImage: { data: string, mimeType: string } | null,
   options: GenerateOptions = { model: 'gemini-3-flash-preview', thinkingMode: false, isImageGeneration: false }
 ) {
-  if (!apiKey) {
-    throw new Error('API key is missing. Please configure VITE_GEMINI_API_KEY in your environment.');
+  const currentApiKey = getApiKey();
+  
+  if (!currentApiKey) {
+    throw new Error('API key is missing. Please configure VITE_GEMINI_API_KEY in your Vercel environment variables.');
   }
+
+  // Always use the freshest key
+  ai = new GoogleGenAI({ apiKey: currentApiKey });
 
   // Enhanced detection for image generation requests
   const imageKeywords = [
