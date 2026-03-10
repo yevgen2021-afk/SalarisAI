@@ -35,12 +35,13 @@ export interface GenerateOptions {
 export const generateResponseStream = async function*(
   userMsg: string, 
   currentImage: { data: string, mimeType: string } | null,
-  options: GenerateOptions = { model: 'google/gemini-2.5-flash:free', thinkingMode: false, isImageGeneration: false }
+  options: GenerateOptions = { model: 'google/gemini-2.5-flash:free', thinkingMode: false, isImageGeneration: false },
+  customKey?: string
 ) {
-  const currentApiKey = getApiKey();
+  const currentApiKey = customKey || getApiKey();
   
   if (!currentApiKey) {
-    throw new Error('API key is missing. Please configure VITE_OPENROUTER_API_KEY in your Vercel environment variables.');
+    throw new Error('API key is missing. Please configure VITE_OPENROUTER_API_KEY in your Vercel environment variables or enter it in Settings.');
   }
 
   const openai = new OpenAI({
