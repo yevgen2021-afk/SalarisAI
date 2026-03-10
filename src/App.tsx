@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-// Force sync for GitHub export
+// Force sync for GitHub export 2
 import localforage from 'localforage';
 import { ArrowUp, Menu, Settings, Moon, Sun, Trash2, Info, X, SquarePen, Plus, Paintbrush, ChevronLeft, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -107,10 +107,6 @@ export default function App() {
   const [attachedImage, setAttachedImage] = useState<{ data: string, mimeType: string } | null>(null);
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
-  
-  const [dashboardData, setDashboardData] = useState<{temp: number | null, wind: number | null, weatherCode: number | null}>({
-    temp: null, wind: null, weatherCode: null
-  });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -199,23 +195,6 @@ export default function App() {
     const color = ACCENT_COLORS.find(c => c.id === accentColor) || ACCENT_COLORS[0];
     return color[type];
   }, [accentColor]);
-
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        const weatherRes = await fetch('https://api.open-meteo.com/v1/forecast?latitude=40.1824&longitude=29.0671&current_weather=true');
-        const weather = await weatherRes.json();
-        setDashboardData({
-          temp: weather.current_weather?.temperature ?? null,
-          wind: weather.current_weather?.windspeed ?? null,
-          weatherCode: weather.current_weather?.weathercode ?? null
-        });
-      } catch (e) {
-        // Silently handle dashboard data fetch errors
-      }
-    };
-    fetchDashboardData();
-  }, []);
 
   const toggleTheme = useCallback(() => {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark');
@@ -736,7 +715,7 @@ export default function App() {
         >
           {activeChat.messages.length === 0 ? (
             <AnimatePresence initial={false}>
-              <Dashboard data={dashboardData} theme={theme} onActionClick={(text) => setInput(text)} />
+              <Dashboard theme={theme} onActionClick={(text) => setInput(text)} />
             </AnimatePresence>
           ) : (
             <div className="mt-auto flex flex-col">

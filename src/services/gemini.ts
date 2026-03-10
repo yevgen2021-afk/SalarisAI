@@ -1,33 +1,46 @@
-import OpenAI from 'openai';
+import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 import { SYSTEM_INSTRUCTION } from '../constants';
 
 // Get API key from process.env (injected by Vite config or AI Studio)
 export const getApiKey = () => {
-  try {
-    if (import.meta.env && import.meta.env.VITE_OPENROUTER_API_KEY) {
-      return import.meta.env.VITE_OPENROUTER_API_KEY;
-    }
-  } catch (e) {}
-  
+  // 1. Try standard Vite environment variable (Best for Vercel)
   try {
     if (import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) {
       return import.meta.env.VITE_GEMINI_API_KEY;
     }
   } catch (e) {}
   
+  // 2. Try process.env (Used in AI Studio preview and replaced by Vite define)
   try {
-    if (process.env.OPENROUTER_API_KEY) return process.env.OPENROUTER_API_KEY;
+    if (process.env.GEMINI_API_KEY) return process.env.GEMINI_API_KEY;
   } catch (e) {}
   
   try {
-    if (process.env.GEMINI_API_KEY) return process.env.GEMINI_API_KEY;
+    if (process.env.API_KEY) return process.env.API_KEY;
+  } catch (e) {}
+  
+  try {
+    if (process.env.GOOGLE_API_KEY) return process.env.GOOGLE_API_KEY;
   } catch (e) {}
   
   return '';
 };
 
+const apiKey = getApiKey();
+
+if (!apiKey) {
+  console.warn("Ключ GEMINI_API_KEY не найден");
+}
+
+// We instantiate the AI client dynamically inside the function to ensure it picks up the latest key
+// if it's somehow injected later, but we keep a fallback instance just in case.
+let ai = new GoogleGenAI({ 
+  apiKey: apiKey || 'dummy-key',
+  baseUrl: 'https://generativelanguage.googleapis.com'
+});
+
 export interface GenerateOptions {
-  model: 'google/gemini-2.5-flash:free' | 'meta-llama/llama-3.3-70b-instruct:free';
+  model: 'gemini-2.5-flash' | 'gemini-2.5-pro';
   thinkingMode: boolean;
   isImageGeneration: boolean;
 }
@@ -35,71 +48,121 @@ export interface GenerateOptions {
 export const generateResponseStream = async function*(
   userMsg: string, 
   currentImage: { data: string, mimeType: string } | null,
-  options: GenerateOptions = { model: 'google/gemini-2.5-flash:free', thinkingMode: false, isImageGeneration: false },
-  customKey?: string
+  options: GenerateOptions = { model: 'gemini-2.5-flash', thinkingMode: false, isImageGeneration: false }
 ) {
-  const currentApiKey = customKey || getApiKey();
+  const currentApiKey = getApiKey();
   
   if (!currentApiKey) {
-    throw new Error('API key is missing. Please configure VITE_OPENROUTER_API_KEY in your Vercel environment variables or enter it in Settings.');
+    throw new Error('API key is missing. Please configure GEMINI_API_KEY in your Vercel environment variables.');
   }
 
-  const openai = new OpenAI({
-    baseURL: "https://openrouter.ai/api/v1",
+  // Always use the freshest key and explicitly set the Google base URL
+  // to prevent any third-party tools or env vars from redirecting to OpenRouter
+  ai = new GoogleGenAI({ 
     apiKey: currentApiKey,
-    dangerouslyAllowBrowser: true, // Required for client-side usage
+    baseUrl: 'https://generativelanguage.googleapis.com'
   });
 
-  // Image generation is not natively supported by standard OpenRouter text models in the same way,
-  // so we will fallback to text generation or use a specific image model if available.
-  // For now, we will just use the text model.
-  const isImageRequest = options.isImageGeneration;
+  // Enhanced detection for image generation requests
+  const imageKeywords = [
+    'нарисуй', 'изобрази', 'сгенерируй', 'создай картинку', 'создай изображение', 
+    'draw', 'generate image', 'create image', 'picture of', 'image of'
+  ];
+  
+  const isImageRequest = options.isImageGeneration || 
+    imageKeywords.some(keyword => userMsg.toLowerCase().includes(keyword)) ||
+    (currentImage && (userMsg.toLowerCase().includes('иконк') || userMsg.toLowerCase().includes('сделай') || userMsg.toLowerCase().includes('создай')));
 
   if (isImageRequest) {
-    yield "Генерация изображений временно недоступна через OpenRouter. Пожалуйста, используйте текстовые запросы.";
-    return;
-  }
+    // Determine aspect ratio based on user prompt
+    let aspectRatio = "1:1";
+    const lowerMsg = userMsg.toLowerCase();
+    if (lowerMsg.includes("16:9") || lowerMsg.includes("широкоформат") || lowerMsg.includes("пейзаж") || lowerMsg.includes("пк") || lowerMsg.includes("горизонталь") || lowerMsg.includes("широк")) {
+      aspectRatio = "16:9";
+    } else if (lowerMsg.includes("9:16") || lowerMsg.includes("телефон") || lowerMsg.includes("смартфон") || lowerMsg.includes("вертикаль") || lowerMsg.includes("портрет")) {
+      aspectRatio = "9:16";
+    } else if (lowerMsg.includes("4:3")) {
+      aspectRatio = "4:3";
+    } else if (lowerMsg.includes("3:4")) {
+      aspectRatio = "3:4";
+    } else if (lowerMsg.includes("1:1") || lowerMsg.includes("квадрат") || lowerMsg.includes("аватар") || lowerMsg.includes("иконк")) {
+      aspectRatio = "1:1";
+    }
 
-  const messages: any[] = [
-    { role: 'system', content: SYSTEM_INSTRUCTION }
-  ];
-
-  if (currentImage) {
-    messages.push({
-      role: 'user',
-      content: [
-        { type: 'text', text: userMsg || 'Посмотри на это изображение.' },
-        {
-          type: 'image_url',
-          image_url: {
-            url: `data:${currentImage.mimeType};base64,${currentImage.data}`
+    // Use image generation model
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash-image',
+        contents: {
+          parts: [
+            ...(currentImage ? [{ inlineData: { data: currentImage.data, mimeType: currentImage.mimeType } }] : []),
+            { text: userMsg || 'Создай красивое изображение.' }
+          ]
+        },
+        config: {
+          imageConfig: {
+            aspectRatio: aspectRatio
           }
         }
-      ]
-    });
-  } else {
-    messages.push({ role: 'user', content: userMsg });
-  }
+      });
 
-  try {
-    const stream = await openai.chat.completions.create({
-      model: options.model,
-      messages: messages,
-      stream: true,
-      // OpenRouter specific headers
-      extra_headers: {
-        "HTTP-Referer": window.location.origin,
-        "X-Title": "SalarisAI",
+      let responseText = '';
+      let generatedImageUrl = '';
+      
+      if (response.candidates && response.candidates[0] && response.candidates[0].content && response.candidates[0].content.parts) {
+          for (const part of response.candidates[0].content.parts) {
+            if (part.inlineData && part.inlineData.data) {
+                const mimeType = part.inlineData.mimeType || 'image/png';
+                generatedImageUrl = `data:${mimeType};base64,${part.inlineData.data}`;
+            } else if (part.text) {
+                responseText += part.text;
+            }
+          }
       }
-    });
+      
+      if (!generatedImageUrl) {
+        if (!responseText) {
+           throw new Error('Не удалось сгенерировать изображение. Модель вернула пустой ответ.');
+        }
+        yield responseText;
+      } else {
+        const markdownImage = `![](${generatedImageUrl})`;
+        yield markdownImage;
+      }
 
-    for await (const chunk of stream) {
-      const content = chunk.choices[0]?.delta?.content || "";
-      if (content) {
-        yield content;
-      }
+    } catch (error) {
+      throw new Error("Ошибка генерации изображения: " + (error instanceof Error ? error.message : String(error)));
     }
-  } catch (error) {
-    throw new Error(error instanceof Error ? error.message : String(error));
+  } else {
+    // Standard chat or multimodal chat
+    const parts: any[] = [{ text: userMsg || 'Посмотри на это изображение.' }];
+    if (currentImage) {
+      parts.push({ inlineData: { data: currentImage.data, mimeType: currentImage.mimeType } });
+    }
+    
+    const config: any = {
+      systemInstruction: SYSTEM_INSTRUCTION,
+      tools: [{ googleSearch: {} }],
+    };
+
+    if (options.thinkingMode) {
+      config.thinkingConfig = { thinkingLevel: ThinkingLevel.HIGH };
+    }
+
+    try {
+      const responseStream = await ai.models.generateContentStream({
+        model: options.model,
+        contents: { parts },
+        config
+      });
+      
+      for await (const chunk of responseStream) {
+        if (chunk.text) {
+          yield chunk.text;
+        }
+      }
+    } catch (error) {
+      throw new Error(error instanceof Error ? error.message : String(error));
+    }
   }
 };

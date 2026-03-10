@@ -1,13 +1,7 @@
 import React, { useRef } from 'react';
 import { motion } from 'motion/react';
-import { UNSPLASH_FALLBACK_IMAGE } from '../constants';
 
 interface DashboardProps {
-  data: {
-    temp: number | null;
-    wind: number | null;
-    weatherCode: number | null;
-  };
   theme: 'dark' | 'light';
   onActionClick: (text: string) => void;
 }
@@ -43,7 +37,7 @@ const HoverWidget = ({ children, className, glowColor, onClick }: { children: Re
   );
 };
 
-const Dashboard = ({ data, theme, onActionClick }: DashboardProps) => {
+const Dashboard = ({ theme, onActionClick }: DashboardProps) => {
   return (
     <div className="flex-1 flex flex-col items-start justify-end relative w-full h-full pb-4 md:pb-10">
       <motion.div 
@@ -55,26 +49,6 @@ const Dashboard = ({ data, theme, onActionClick }: DashboardProps) => {
       >
         {/* Widgets Container */}
         <div className="flex flex-col items-start gap-3 mb-8">
-          {/* Weather Widget */}
-          <div 
-            className="relative overflow-hidden group flex items-center gap-3 px-5 py-3 rounded-full shadow-[0_8px_16px_rgba(0,0,0,0.2)] text-white cursor-pointer hover:scale-[1.02] transition-transform border border-white/10 w-fit"
-          >
-            {/* Grass Background */}
-            <div 
-              className="absolute inset-0 z-0 bg-cover bg-center opacity-80"
-              style={{ backgroundImage: `url('${UNSPLASH_FALLBACK_IMAGE}')` }}
-            />
-            
-            {/* Overlay to ensure text readability */}
-            <div className="absolute inset-0 z-0 bg-gradient-to-r from-black/40 to-transparent"></div>
-
-            <span className="relative z-10 text-xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">☀️</span>
-            <span className="relative z-10 text-[14px] font-medium tracking-wide drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-              {data.temp !== null ? `${data.temp}°C` : '--°C'}
-              {data.wind !== null ? `, Ветер ${data.wind} км/ч` : ''}
-            </span>
-          </div>
-
           {/* Image Widget */}
           <HoverWidget 
             onClick={() => onActionClick("Нарисуй ")}
