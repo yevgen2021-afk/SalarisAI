@@ -59,7 +59,7 @@ export default function App() {
         const storedTheme = await localforage.getItem<'dark' | 'light'>('salaris_theme');
         const storedAccentColor = await localforage.getItem<string>('salaris_accent');
         const storedGlow = await localforage.getItem<boolean>('salaris_glow');
-        const storedModel = await localforage.getItem<'gemini-2.5-flash' | 'gemini-2.5-pro'>('salaris_model');
+        const storedModel = await localforage.getItem<string>('salaris_model');
 
         if (storedChats) {
           setChats(storedChats);
@@ -77,7 +77,12 @@ export default function App() {
         if (storedTheme) setTheme(storedTheme);
         if (storedAccentColor) setAccentColor(storedAccentColor);
         if (storedGlow !== null) setIsGlowEnabled(storedGlow);
-        if (storedModel) setSelectedModel(storedModel);
+        if (storedModel === 'gemini-2.5-flash' || storedModel === 'gemini-2.5-pro') {
+          setSelectedModel(storedModel as 'gemini-2.5-flash' | 'gemini-2.5-pro');
+        } else {
+          setSelectedModel('gemini-2.5-flash');
+          localforage.setItem('salaris_model', 'gemini-2.5-flash');
+        }
       } catch (error) {
         // Silently handle localforage load errors
       } finally {
