@@ -37,7 +37,7 @@ if (!apiKey) {
 let ai = new GoogleGenAI({ apiKey: apiKey || 'dummy-key' });
 
 export interface GenerateOptions {
-  model: 'gemini-3-flash-preview' | 'gemini-3.1-pro-preview';
+  model: 'gemini-2.5-flash' | 'gemini-2.5-pro';
   thinkingMode: boolean;
   isImageGeneration: boolean;
 }
@@ -45,7 +45,7 @@ export interface GenerateOptions {
 export const generateResponseStream = async function*(
   userMsg: string, 
   currentImage: { data: string, mimeType: string } | null,
-  options: GenerateOptions = { model: 'gemini-3-flash-preview', thinkingMode: false, isImageGeneration: false }
+  options: GenerateOptions = { model: 'gemini-2.5-flash', thinkingMode: false, isImageGeneration: false }
 ) {
   const currentApiKey = getApiKey();
   

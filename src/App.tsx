@@ -45,7 +45,7 @@ export default function App() {
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
   const [isActionMenuInteracting, setIsActionMenuInteracting] = useState(false);
   const [actionMenuView, setActionMenuView] = useState<'main' | 'model'>('main');
-  const [selectedModel, setSelectedModel] = useState<'gemini-3-flash-preview' | 'gemini-3.1-pro-preview'>('gemini-3-flash-preview');
+  const [selectedModel, setSelectedModel] = useState<'gemini-2.5-flash' | 'gemini-2.5-pro'>('gemini-2.5-flash');
   const [isThinkingMode, setIsThinkingMode] = useState<boolean>(false);
   const [isExplicitImageMode, setIsExplicitImageMode] = useState<boolean>(false);
 
@@ -58,7 +58,7 @@ export default function App() {
         const storedTheme = await localforage.getItem<'dark' | 'light'>('salaris_theme');
         const storedAccentColor = await localforage.getItem<string>('salaris_accent');
         const storedGlow = await localforage.getItem<boolean>('salaris_glow');
-        const storedModel = await localforage.getItem<'gemini-3-flash-preview' | 'gemini-3.1-pro-preview'>('salaris_model');
+        const storedModel = await localforage.getItem<'gemini-2.5-flash' | 'gemini-2.5-pro'>('salaris_model');
 
         if (storedChats) {
           setChats(storedChats);
@@ -943,7 +943,7 @@ export default function App() {
                             Модель
                           </div>
                           <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                            {selectedModel === 'gemini-3-flash-preview' ? 'SalarisAI classic' : 'SalarisAI Pro'}
+                            {selectedModel === 'gemini-2.5-flash' ? 'SalarisAI classic' : 'SalarisAI Pro'}
                           </span>
                         </motion.button>
 
@@ -977,7 +977,7 @@ export default function App() {
                           <span className="font-medium">Выберите модель</span>
                         </div>
                         <button 
-                          onClick={() => { setSelectedModel('gemini-3-flash-preview'); setActionMenuView('main'); }}
+                          onClick={() => { setSelectedModel('gemini-2.5-flash'); setActionMenuView('main'); }}
                           className={`flex items-center justify-between px-4 py-3 rounded-full text-sm font-medium transition-colors ${
                             theme === 'dark' 
                               ? 'hover:bg-white/10 active:bg-white/20 text-white' 
@@ -985,10 +985,10 @@ export default function App() {
                           }`}
                         >
                           SalarisAI classic
-                          {selectedModel === 'gemini-3-flash-preview' && <Check className="w-4 h-4" />}
+                          {selectedModel === 'gemini-2.5-flash' && <Check className="w-4 h-4" />}
                         </button>
                         <button 
-                          onClick={() => { setSelectedModel('gemini-3.1-pro-preview'); setActionMenuView('main'); }}
+                          onClick={() => { setSelectedModel('gemini-2.5-pro'); setActionMenuView('main'); }}
                           className={`flex items-center justify-between px-4 py-3 rounded-full text-sm font-medium transition-colors ${
                             theme === 'dark' 
                               ? 'hover:bg-white/10 active:bg-white/20 text-white' 
@@ -996,7 +996,7 @@ export default function App() {
                           }`}
                         >
                           SalarisAI Pro
-                          {selectedModel === 'gemini-3.1-pro-preview' && <Check className="w-4 h-4" />}
+                          {selectedModel === 'gemini-2.5-pro' && <Check className="w-4 h-4" />}
                         </button>
                       </div>
                     </motion.div>
