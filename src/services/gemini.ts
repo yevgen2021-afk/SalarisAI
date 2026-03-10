@@ -1,11 +1,8 @@
 import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 import { SYSTEM_INSTRUCTION } from '../constants';
 
-// Get API key from Vite env vars, or fallback to process.env (for AI Studio preview)
+// Get API key from process.env (injected by Vite config or AI Studio)
 const getApiKey = () => {
-  if (typeof import.meta !== 'undefined' && import.meta.env) {
-    if (import.meta.env.VITE_GEMINI_API_KEY) return import.meta.env.VITE_GEMINI_API_KEY;
-  }
   if (typeof process !== 'undefined' && process.env) {
     if (process.env.GEMINI_API_KEY) return process.env.GEMINI_API_KEY;
     if (process.env.API_KEY) return process.env.API_KEY;
@@ -17,7 +14,7 @@ const getApiKey = () => {
 const apiKey = getApiKey();
 
 if (!apiKey) {
-  console.warn("Ключ VITE_GEMINI_API_KEY или GEMINI_API_KEY не найден");
+  console.warn("Ключ GEMINI_API_KEY не найден");
 }
 
 // We instantiate the AI client dynamically inside the function to ensure it picks up the latest key
@@ -38,7 +35,7 @@ export const generateResponseStream = async function*(
   const currentApiKey = getApiKey();
   
   if (!currentApiKey) {
-    throw new Error('API key is missing. Please configure VITE_GEMINI_API_KEY in your Vercel environment variables.');
+    throw new Error('API key is missing. Please configure GEMINI_API_KEY in your Vercel environment variables.');
   }
 
   // Always use the freshest key
