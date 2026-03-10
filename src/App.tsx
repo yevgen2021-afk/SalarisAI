@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+// Force sync for GitHub export
 import localforage from 'localforage';
 import { ArrowUp, Menu, Settings, Moon, Sun, Trash2, Info, X, SquarePen, Plus, Paintbrush, ChevronLeft, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -45,8 +46,7 @@ export default function App() {
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
   const [isActionMenuInteracting, setIsActionMenuInteracting] = useState(false);
   const [actionMenuView, setActionMenuView] = useState<'main' | 'model'>('main');
-  const [selectedModel, setSelectedModel] = useState<'google/gemini-2.5-flash:free' | 'meta-llama/llama-3.3-70b-instruct:free'>('google/gemini-2.5-flash:free');
-  const [openRouterKey, setOpenRouterKey] = useState<string>('');
+  const [selectedModel, setSelectedModel] = useState<'gemini-2.5-flash' | 'gemini-2.5-pro'>('gemini-2.5-flash');
   const [isThinkingMode, setIsThinkingMode] = useState<boolean>(false);
   const [isExplicitImageMode, setIsExplicitImageMode] = useState<boolean>(false);
 
@@ -59,8 +59,7 @@ export default function App() {
         const storedTheme = await localforage.getItem<'dark' | 'light'>('salaris_theme');
         const storedAccentColor = await localforage.getItem<string>('salaris_accent');
         const storedGlow = await localforage.getItem<boolean>('salaris_glow');
-        const storedModel = await localforage.getItem<'google/gemini-2.5-flash:free' | 'meta-llama/llama-3.3-70b-instruct:free'>('salaris_model');
-        const storedKey = await localforage.getItem<string>('salaris_openrouter_key');
+        const storedModel = await localforage.getItem<'gemini-2.5-flash' | 'gemini-2.5-pro'>('salaris_model');
 
         if (storedChats) {
           setChats(storedChats);
@@ -79,7 +78,6 @@ export default function App() {
         if (storedAccentColor) setAccentColor(storedAccentColor);
         if (storedGlow !== null) setIsGlowEnabled(storedGlow);
         if (storedModel) setSelectedModel(storedModel);
-        if (storedKey) setOpenRouterKey(storedKey);
       } catch (error) {
         // Silently handle localforage load errors
       } finally {
@@ -99,8 +97,7 @@ export default function App() {
     localforage.setItem('salaris_accent', accentColor);
     localforage.setItem('salaris_glow', isGlowEnabled);
     localforage.setItem('salaris_model', selectedModel);
-    localforage.setItem('salaris_openrouter_key', openRouterKey);
-  }, [chats, activeChatId, theme, accentColor, isGlowEnabled, selectedModel, openRouterKey, isLoaded]);
+  }, [chats, activeChatId, theme, accentColor, isGlowEnabled, selectedModel, isLoaded]);
 
   const [attachedImage, setAttachedImage] = useState<{ data: string, mimeType: string } | null>(null);
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
@@ -365,7 +362,7 @@ export default function App() {
         model: selectedModel,
         thinkingMode: currentThinkingMode,
         isImageGeneration: isImageGen
-      }, openRouterKey);
+      });
 
       if (isImageGen) {
         let fullContent = '';
@@ -521,7 +518,7 @@ export default function App() {
         model: selectedModel,
         thinkingMode: isThinkingMode,
         isImageGeneration: isImageGen
-      }, openRouterKey);
+      });
 
       if (isImageGen) {
         let fullContent = '';
@@ -947,7 +944,7 @@ export default function App() {
                             Модель
                           </div>
                           <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                            {selectedModel === 'google/gemini-2.5-flash:free' ? 'SalarisAI classic' : 'SalarisAI Pro'}
+                            {selectedModel === 'gemini-2.5-flash' ? 'SalarisAI classic' : 'SalarisAI Pro'}
                           </span>
                         </motion.button>
 
@@ -981,7 +978,7 @@ export default function App() {
                           <span className="font-medium">Выберите модель</span>
                         </div>
                         <button 
-                          onClick={() => { setSelectedModel('google/gemini-2.5-flash:free'); setActionMenuView('main'); }}
+                          onClick={() => { setSelectedModel('gemini-2.5-flash'); setActionMenuView('main'); }}
                           className={`flex items-center justify-between px-4 py-3 rounded-full text-sm font-medium transition-colors ${
                             theme === 'dark' 
                               ? 'hover:bg-white/10 active:bg-white/20 text-white' 
@@ -989,10 +986,10 @@ export default function App() {
                           }`}
                         >
                           SalarisAI classic
-                          {selectedModel === 'google/gemini-2.5-flash:free' && <Check className="w-4 h-4" />}
+                          {selectedModel === 'gemini-2.5-flash' && <Check className="w-4 h-4" />}
                         </button>
                         <button 
-                          onClick={() => { setSelectedModel('meta-llama/llama-3.3-70b-instruct:free'); setActionMenuView('main'); }}
+                          onClick={() => { setSelectedModel('gemini-2.5-pro'); setActionMenuView('main'); }}
                           className={`flex items-center justify-between px-4 py-3 rounded-full text-sm font-medium transition-colors ${
                             theme === 'dark' 
                               ? 'hover:bg-white/10 active:bg-white/20 text-white' 
@@ -1000,7 +997,7 @@ export default function App() {
                           }`}
                         >
                           SalarisAI Pro
-                          {selectedModel === 'meta-llama/llama-3.3-70b-instruct:free' && <Check className="w-4 h-4" />}
+                          {selectedModel === 'gemini-2.5-pro' && <Check className="w-4 h-4" />}
                         </button>
                       </div>
                     </motion.div>
@@ -1354,33 +1351,6 @@ export default function App() {
                   Удалить все чаты
                 </motion.button>
                 
-                <div className={`h-px w-full my-2 ${theme === 'dark' ? 'bg-white/10' : 'bg-black/5'}`} />
-                
-                <div className="px-4 py-2 flex flex-col gap-2">
-                  <label className={`text-xs font-medium ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                    OpenRouter API Key
-                  </label>
-                  <input
-                    type="password"
-                    value={openRouterKey}
-                    onChange={(e) => setOpenRouterKey(e.target.value)}
-                    placeholder="sk-or-v1-..."
-                    className={`w-full px-3 py-2 rounded-xl text-sm border focus:outline-none transition-colors ${
-                      theme === 'dark' 
-                        ? 'bg-black/20 border-white/10 text-white placeholder-gray-600 focus:border-white/30' 
-                        : 'bg-white/50 border-black/10 text-black placeholder-gray-400 focus:border-black/30'
-                    }`}
-                  />
-                  <a 
-                    href="https://openrouter.ai/keys" 
-                    target="_blank" 
-                    rel="noreferrer"
-                    className={`text-[10px] underline ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}
-                  >
-                    Получить бесплатный ключ
-                  </a>
-                </div>
-
                 <div className={`h-px w-full my-2 ${theme === 'dark' ? 'bg-white/10' : 'bg-black/5'}`} />
                 
                 <motion.button 
