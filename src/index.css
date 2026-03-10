@@ -89,6 +89,26 @@
   box-shadow: 0 25px 60px rgba(15, 23, 42, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 
+.hyper-glass {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.light .hyper-glass {
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.hyper-glass-shadow {
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+}
+
+.light .hyper-glass-shadow {
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 4px;

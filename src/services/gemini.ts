@@ -1,10 +1,10 @@
 import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 import { SYSTEM_INSTRUCTION } from '../constants';
 
-const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
 if (!apiKey) {
-  console.error('GEMINI_API_KEY is not defined. Please set it in your environment variables.');
+  console.warn("Ключ VITE_GEMINI_API_KEY не найден");
 }
 
 const ai = new GoogleGenAI({ apiKey: apiKey || '' });
@@ -21,7 +21,7 @@ export const generateResponseStream = async function*(
   options: GenerateOptions = { model: 'gemini-3-flash-preview', thinkingMode: false, isImageGeneration: false }
 ) {
   if (!apiKey) {
-    throw new Error('API key is missing. Please configure GEMINI_API_KEY in your environment.');
+    throw new Error('API key is missing. Please configure VITE_GEMINI_API_KEY in your environment.');
   }
 
   // Enhanced detection for image generation requests
