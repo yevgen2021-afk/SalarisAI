@@ -423,10 +423,11 @@ export default function App() {
       }
 
     } catch (error) {
+      const errorText = error instanceof Error ? error.message : 'Произошла ошибка связи с сервером. Пожалуйста, попробуйте позже.';
       const errorMessage: Message = { 
         id: (Date.now() + 1).toString(), 
         role: 'model', 
-        content: 'Произошла ошибка связи с сервером. Пожалуйста, попробуйте позже.' 
+        content: errorText
       };
       setChats(prev => prev.map(chat => {
         if (chat.id === activeChatId) {
@@ -558,10 +559,11 @@ export default function App() {
       }
 
     } catch (error) {
+      const errorText = error instanceof Error ? error.message : 'Произошла ошибка связи с сервером. Пожалуйста, попробуйте позже.';
       const errorMessage: Message = { 
         id: (Date.now() + 1).toString(), 
         role: 'model', 
-        content: 'Произошла ошибка связи с сервером. Пожалуйста, попробуйте позже.' 
+        content: errorText
       };
       setChats(prev => prev.map(c => {
         if (c.id === activeChatId) {

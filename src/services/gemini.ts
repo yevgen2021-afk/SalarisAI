@@ -4,15 +4,25 @@ import { SYSTEM_INSTRUCTION } from '../constants';
 // Get API key from process.env (injected by Vite config or AI Studio)
 const getApiKey = () => {
   // 1. Try standard Vite environment variable (Best for Vercel)
-  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) {
-    return import.meta.env.VITE_GEMINI_API_KEY;
-  }
-  // 2. Try process.env (Used in AI Studio preview)
-  if (typeof process !== 'undefined' && process.env) {
+  try {
+    if (import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) {
+      return import.meta.env.VITE_GEMINI_API_KEY;
+    }
+  } catch (e) {}
+  
+  // 2. Try process.env (Used in AI Studio preview and replaced by Vite define)
+  try {
     if (process.env.GEMINI_API_KEY) return process.env.GEMINI_API_KEY;
+  } catch (e) {}
+  
+  try {
     if (process.env.API_KEY) return process.env.API_KEY;
+  } catch (e) {}
+  
+  try {
     if (process.env.GOOGLE_API_KEY) return process.env.GOOGLE_API_KEY;
-  }
+  } catch (e) {}
+  
   return '';
 };
 
