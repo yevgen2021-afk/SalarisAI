@@ -46,7 +46,7 @@ export default function App() {
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
   const [isActionMenuInteracting, setIsActionMenuInteracting] = useState(false);
   const [actionMenuView, setActionMenuView] = useState<'main' | 'model'>('main');
-  const [selectedModel, setSelectedModel] = useState<'gemini-2.5-flash' | 'gemini-2.5-pro'>('gemini-2.5-flash');
+  const [selectedModel, setSelectedModel] = useState<'gemini-3-flash-preview' | 'gemini-3.1-pro-preview'>('gemini-3-flash-preview');
   const [isThinkingMode, setIsThinkingMode] = useState<boolean>(false);
   const [isExplicitImageMode, setIsExplicitImageMode] = useState<boolean>(false);
 
@@ -77,11 +77,11 @@ export default function App() {
         if (storedTheme) setTheme(storedTheme);
         if (storedAccentColor) setAccentColor(storedAccentColor);
         if (storedGlow !== null) setIsGlowEnabled(storedGlow);
-        if (storedModel === 'gemini-2.5-flash' || storedModel === 'gemini-2.5-pro') {
-          setSelectedModel(storedModel as 'gemini-2.5-flash' | 'gemini-2.5-pro');
+        if (storedModel === 'gemini-3-flash-preview' || storedModel === 'gemini-3.1-pro-preview') {
+          setSelectedModel(storedModel as 'gemini-3-flash-preview' | 'gemini-3.1-pro-preview');
         } else {
-          setSelectedModel('gemini-2.5-flash');
-          localforage.setItem('salaris_model', 'gemini-2.5-flash');
+          setSelectedModel('gemini-3-flash-preview');
+          localforage.setItem('salaris_model', 'gemini-3-flash-preview');
         }
       } catch (error) {
         // Silently handle localforage load errors
@@ -928,7 +928,7 @@ export default function App() {
                             Модель
                           </div>
                           <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                            {selectedModel === 'gemini-2.5-flash' ? 'SalarisAI classic' : 'SalarisAI Pro'}
+                            {selectedModel === 'gemini-3-flash-preview' ? 'SalarisAI classic' : 'SalarisAI Pro'}
                           </span>
                         </motion.button>
 
@@ -962,7 +962,7 @@ export default function App() {
                           <span className="font-medium">Выберите модель</span>
                         </div>
                         <button 
-                          onClick={() => { setSelectedModel('gemini-2.5-flash'); setActionMenuView('main'); }}
+                          onClick={() => { setSelectedModel('gemini-3-flash-preview'); setActionMenuView('main'); }}
                           className={`flex items-center justify-between px-4 py-3 rounded-full text-sm font-medium transition-colors ${
                             theme === 'dark' 
                               ? 'hover:bg-white/10 active:bg-white/20 text-white' 
@@ -970,10 +970,10 @@ export default function App() {
                           }`}
                         >
                           SalarisAI classic
-                          {selectedModel === 'gemini-2.5-flash' && <Check className="w-4 h-4" />}
+                          {selectedModel === 'gemini-3-flash-preview' && <Check className="w-4 h-4" />}
                         </button>
                         <button 
-                          onClick={() => { setSelectedModel('gemini-2.5-pro'); setActionMenuView('main'); }}
+                          onClick={() => { setSelectedModel('gemini-3.1-pro-preview'); setActionMenuView('main'); }}
                           className={`flex items-center justify-between px-4 py-3 rounded-full text-sm font-medium transition-colors ${
                             theme === 'dark' 
                               ? 'hover:bg-white/10 active:bg-white/20 text-white' 
@@ -981,7 +981,7 @@ export default function App() {
                           }`}
                         >
                           SalarisAI Pro
-                          {selectedModel === 'gemini-2.5-pro' && <Check className="w-4 h-4" />}
+                          {selectedModel === 'gemini-3.1-pro-preview' && <Check className="w-4 h-4" />}
                         </button>
                       </div>
                     </motion.div>
