@@ -142,16 +142,20 @@ export const generateResponseStream = async function*(
       config.thinkingConfig = { thinkingLevel: ThinkingLevel.HIGH };
     }
 
-    const responseStream = await ai.models.generateContentStream({
-      model: options.model,
-      contents: { parts },
-      config
-    });
-    
-    for await (const chunk of responseStream) {
-      if (chunk.text) {
-        yield chunk.text;
+    try {
+      const responseStream = await ai.models.generateContentStream({
+        model: options.model,
+        contents: { parts },
+        config
+      });
+      
+      for await (const chunk of responseStream) {
+        if (chunk.text) {
+          yield chunk.text;
+        }
       }
+    } catch (error) {
+      throw new Error(error instanceof Error ? error.message : String(error));
     }
   }
 };

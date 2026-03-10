@@ -423,7 +423,22 @@ export default function App() {
       }
 
     } catch (error) {
-      const errorText = error instanceof Error ? error.message : 'Произошла ошибка связи с сервером. Пожалуйста, попробуйте позже.';
+      let errorText = 'Произошла ошибка связи с сервером. Пожалуйста, попробуйте позже.';
+      if (error instanceof Error) {
+        errorText = error.message;
+        if (errorText.includes('429') || errorText.includes('quota') || errorText.includes('RESOURCE_EXHAUSTED')) {
+          errorText = 'Превышен лимит запросов к API Google (Quota Exceeded). Пожалуйста, подождите (лимиты сбрасываются) или проверьте ваш аккаунт Google AI Studio.';
+        } else if (errorText.includes('{')) {
+          try {
+            // Attempt to extract a cleaner message if it's JSON
+            const match = errorText.match(/"message":\s*"([^"]+)"/);
+            if (match && match[1]) {
+              errorText = match[1].replace(/\\n/g, ' ');
+            }
+          } catch (e) {}
+        }
+      }
+      
       const errorMessage: Message = { 
         id: (Date.now() + 1).toString(), 
         role: 'model', 
@@ -559,7 +574,21 @@ export default function App() {
       }
 
     } catch (error) {
-      const errorText = error instanceof Error ? error.message : 'Произошла ошибка связи с сервером. Пожалуйста, попробуйте позже.';
+      let errorText = 'Произошла ошибка связи с сервером. Пожалуйста, попробуйте позже.';
+      if (error instanceof Error) {
+        errorText = error.message;
+        if (errorText.includes('429') || errorText.includes('quota') || errorText.includes('RESOURCE_EXHAUSTED')) {
+          errorText = 'Превышен лимит запросов к API Google (Quota Exceeded). Пожалуйста, подождите (лимиты сбрасываются) или проверьте ваш аккаунт Google AI Studio.';
+        } else if (errorText.includes('{')) {
+          try {
+            const match = errorText.match(/"message":\s*"([^"]+)"/);
+            if (match && match[1]) {
+              errorText = match[1].replace(/\\n/g, ' ');
+            }
+          } catch (e) {}
+        }
+      }
+
       const errorMessage: Message = { 
         id: (Date.now() + 1).toString(), 
         role: 'model', 
