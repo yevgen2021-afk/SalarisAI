@@ -1,5 +1,6 @@
 import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 import { SYSTEM_INSTRUCTION } from '../constants';
+import { Message } from '../types';
 
 // Get API key from process.env (injected by Vite config or AI Studio)
 export const getApiKey = () => {
@@ -40,7 +41,7 @@ let ai = new GoogleGenAI({
 });
 
 export interface GenerateOptions {
-  model: 'gemini-3-flash-preview' | 'gemini-3.1-pro-preview';
+  model: 'gemini-2.5-flash' | 'gemini-2.5-pro';
   thinkingMode: boolean;
   isImageGeneration: boolean;
 }
@@ -48,7 +49,8 @@ export interface GenerateOptions {
 export const generateResponseStream = async function*(
   userMsg: string, 
   currentImage: { data: string, mimeType: string } | null,
-  options: GenerateOptions = { model: 'gemini-3-flash-preview', thinkingMode: false, isImageGeneration: false }
+  options: GenerateOptions = { model: 'gemini-2.5-flash', thinkingMode: false, isImageGeneration: false },
+  history: Message[] = []
 ) {
   const currentApiKey = getApiKey();
   
@@ -92,7 +94,7 @@ export const generateResponseStream = async function*(
     // Use image generation model
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-3.1-flash-image-preview',
+        model: 'gemini-2.5-flash-image',
         contents: {
           parts: [
             ...(currentImage ? [{ inlineData: { data: currentImage.data, mimeType: currentImage.mimeType } }] : []),
@@ -149,10 +151,31 @@ export const generateResponseStream = async function*(
       config.thinkingConfig = { thinkingLevel: ThinkingLevel.HIGH };
     }
 
+    // Format history for Gemini (keep only last 10 messages to save tokens and prevent Quota Exceeded)
+    const recentHistory = history
+      .filter(m => m.content && m.content.trim() !== '') // Remove empty messages
+      .slice(-10); // Keep only the last 10 messages (5 turns)
+
+    const formattedHistory = recentHistory.map(msg => {
+      const msgParts: any[] = [{ text: msg.content || ' ' }];
+      if (msg.images && msg.images.length > 0) {
+        msg.images.forEach(img => {
+          const match = img.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
+          if (match) {
+            msgParts.push({ inlineData: { mimeType: match[1], data: match[2] } });
+          }
+        });
+      }
+      return {
+        role: msg.role === 'user' ? 'user' : 'model',
+        parts: msgParts
+      };
+    });
+
     try {
       const responseStream = await ai.models.generateContentStream({
         model: options.model,
-        contents: { parts },
+        contents: [...formattedHistory, { role: 'user', parts }],
         config
       });
       
