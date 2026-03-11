@@ -151,26 +151,8 @@ export const generateResponseStream = async function*(
       config.thinkingConfig = { thinkingLevel: ThinkingLevel.HIGH };
     }
 
-    // Format history for Gemini (keep only last 10 messages to save tokens and prevent Quota Exceeded)
-    const recentHistory = history
-      .filter(m => m.content && m.content.trim() !== '') // Remove empty messages
-      .slice(-10); // Keep only the last 10 messages (5 turns)
-
-    const formattedHistory = recentHistory.map(msg => {
-      const msgParts: any[] = [{ text: msg.content || ' ' }];
-      if (msg.images && msg.images.length > 0) {
-        msg.images.forEach(img => {
-          const match = img.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
-          if (match) {
-            msgParts.push({ inlineData: { mimeType: match[1], data: match[2] } });
-          }
-        });
-      }
-      return {
-        role: msg.role === 'user' ? 'user' : 'model',
-        parts: msgParts
-      };
-    });
+    // Format history for Gemini (history is disabled to save tokens and prevent Quota Exceeded)
+    const formattedHistory: any[] = [];
 
     try {
       const responseStream = await ai.models.generateContentStream({

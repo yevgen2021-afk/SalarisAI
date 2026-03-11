@@ -17,7 +17,7 @@ const createNewChat = (): Chat => ({
 });
 
 const ACCENT_COLORS = [
-  { id: 'sky', name: 'Небесный', bg: 'bg-sky-400', text: 'text-sky-400', border: 'border-sky-400', shadow: 'shadow-sky-400/20', hover: 'hover:bg-sky-500' },
+  { id: 'laguna', name: 'Лагуна', bg: 'bg-cyan-500', text: 'text-cyan-500', border: 'border-cyan-500', shadow: 'shadow-cyan-500/20', hover: 'hover:bg-cyan-600' },
   { id: 'pink', name: 'Румянец', bg: 'bg-pink-400', text: 'text-pink-400', border: 'border-pink-400', shadow: 'shadow-pink-400/20', hover: 'hover:bg-pink-500' },
   { id: 'purple', name: 'Аметист', bg: 'bg-purple-500', text: 'text-purple-500', border: 'border-purple-500', shadow: 'shadow-purple-500/20', hover: 'hover:bg-purple-600' },
   { id: 'emerald', name: 'Мята', bg: 'bg-emerald-400', text: 'text-emerald-400', border: 'border-emerald-400', shadow: 'shadow-emerald-400/20', hover: 'hover:bg-emerald-500' },
@@ -36,7 +36,7 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>('light');
-  const [accentColor, setAccentColor] = useState<string>('sky');
+  const [accentColor, setAccentColor] = useState<string>('laguna');
   const [isGlowEnabled, setIsGlowEnabled] = useState<boolean>(true);
   const [settingsView, setSettingsView] = useState<'main' | 'customization'>('main');
   const [isColorExpanded, setIsColorExpanded] = useState(false);
@@ -427,14 +427,30 @@ export default function App() {
         }
       }
       
-      const errorMessage: Message = { 
-        id: (Date.now() + 1).toString(), 
-        role: 'model', 
-        content: errorText
-      };
       setChats(prev => prev.map(chat => {
         if (chat.id === activeChatId) {
-          return { ...chat, messages: [...chat.messages, errorMessage] };
+          const hasModelMessage = chat.messages.some(m => m.id === modelMessageId);
+          if (hasModelMessage) {
+            return {
+              ...chat,
+              messages: chat.messages.map(m => {
+                if (m.id === modelMessageId) {
+                  const newContent = m.content.trim() === '{' || m.content.trim() === '' 
+                    ? errorText 
+                    : `${m.content}\n\n**Ошибка:** ${errorText}`;
+                  return { ...m, content: newContent, isTyping: false };
+                }
+                return m;
+              })
+            };
+          } else {
+            const errorMessage: Message = { 
+              id: (Date.now() + 1).toString(), 
+              role: 'model', 
+              content: errorText
+            };
+            return { ...chat, messages: [...chat.messages, errorMessage] };
+          }
         }
         return chat;
       }));
@@ -580,14 +596,30 @@ export default function App() {
         }
       }
 
-      const errorMessage: Message = { 
-        id: (Date.now() + 1).toString(), 
-        role: 'model', 
-        content: errorText
-      };
       setChats(prev => prev.map(c => {
         if (c.id === activeChatId) {
-          return { ...c, messages: [...c.messages, errorMessage] };
+          const hasModelMessage = c.messages.some(m => m.id === modelMessageId);
+          if (hasModelMessage) {
+            return {
+              ...c,
+              messages: c.messages.map(m => {
+                if (m.id === modelMessageId) {
+                  const newContent = m.content.trim() === '{' || m.content.trim() === '' 
+                    ? errorText 
+                    : `${m.content}\n\n**Ошибка:** ${errorText}`;
+                  return { ...m, content: newContent, isTyping: false };
+                }
+                return m;
+              })
+            };
+          } else {
+            const errorMessage: Message = { 
+              id: (Date.now() + 1).toString(), 
+              role: 'model', 
+              content: errorText
+            };
+            return { ...c, messages: [...c.messages, errorMessage] };
+          }
         }
         return c;
       }));
@@ -599,7 +631,7 @@ export default function App() {
   if (!isLoaded) {
     return (
       <div className={`flex h-screen items-center justify-center ${theme === 'dark' ? 'bg-[#050505]' : 'bg-[#f8f9fa]'}`}>
-        <div className="w-8 h-8 rounded-full border-2 border-sky-500 border-t-transparent animate-spin"></div>
+        <div className="w-8 h-8 rounded-full border-2 border-cyan-500 border-t-transparent animate-spin"></div>
       </div>
     );
   }
@@ -662,7 +694,7 @@ export default function App() {
               className={`px-5 h-11 flex items-center justify-center rounded-full shadow-md border transition-colors ${theme === 'dark' ? 'bg-[#1a1a1a] border-white/10 text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]' : 'bg-white border-gray-200/50 text-black shadow-[0_4px_15px_rgba(0,0,0,0.05)]'}`}
             >
               <h1 className={`text-lg font-google font-bold tracking-tighter ${theme === 'dark' ? 'text-white' : 'text-gray-900'} flex items-center gap-0.5`}>
-                salaris<span className="text-pink-500">ai</span>
+                salaris<span className={getAccentClass('text')}>ai</span>
                 <span className={`ml-2 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-widest ${theme === 'dark' ? 'bg-white/10 text-gray-400' : 'bg-gray-200 text-gray-500'}`}>
                   beta
                 </span>
@@ -1203,7 +1235,7 @@ export default function App() {
                 </button>
                 <button
                   onClick={() => saveChatTitle(editingChatId)}
-                  className="flex-1 py-3 text-sm font-semibold transition-colors bg-blue-500 text-white hover:bg-blue-600 active:bg-blue-700 rounded-full"
+                  className={`flex-1 py-3 text-sm font-semibold transition-colors text-white rounded-full ${getAccentClass('bg')} ${getAccentClass('hover')}`}
                 >
                   Продолжить
                 </button>

@@ -67,8 +67,8 @@ const ChatMessage = memo(({ id, role, content, images, theme, isTyping, isImageG
       case 'emerald': return 'text-emerald-500';
       case 'red': return 'text-red-500';
       case 'orange': return 'text-orange-500';
-      case 'sky':
-      default: return 'text-sky-500';
+      case 'laguna':
+      default: return 'text-cyan-500';
     }
   };
 
@@ -79,8 +79,8 @@ const ChatMessage = memo(({ id, role, content, images, theme, isTyping, isImageG
       case 'emerald': return 'bg-emerald-400 shadow-emerald-400/20';
       case 'red': return 'bg-red-500 shadow-red-500/20';
       case 'orange': return 'bg-orange-500 shadow-orange-500/20';
-      case 'sky':
-      default: return 'bg-sky-400 shadow-sky-400/20';
+      case 'laguna':
+      default: return 'bg-cyan-500 shadow-cyan-500/20';
     }
   };
 
@@ -127,7 +127,7 @@ const ChatMessage = memo(({ id, role, content, images, theme, isTyping, isImageG
                 exit={{ scale: 0, opacity: 0, transition: { duration: 0.15 } }}
                 className="relative z-10 px-6 py-4 rounded-[2rem] glass-panel flex items-center gap-3 w-fit"
               >
-                <div className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: accentColor === 'sky' ? '#38bdf8' : accentColor === 'pink' ? '#f472b6' : accentColor === 'purple' ? '#a855f7' : accentColor === 'emerald' ? '#34d399' : accentColor === 'red' ? '#ef4444' : '#f97316', borderTopColor: 'transparent' }}></div>
+                <div className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: accentColor === 'laguna' ? '#06b6d4' : accentColor === 'pink' ? '#f472b6' : accentColor === 'purple' ? '#a855f7' : accentColor === 'emerald' ? '#34d399' : accentColor === 'red' ? '#ef4444' : '#f97316', borderTopColor: 'transparent' }}></div>
                 <span className={`text-sm font-medium animate-pulse ${getAccentTextClass()}`}>Генерация изображения...</span>
               </motion.div>
             ) : isImageGen && !isTyping ? (
