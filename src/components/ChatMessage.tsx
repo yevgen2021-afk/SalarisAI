@@ -156,7 +156,7 @@ const ChatMessage = memo(({ id, role, content, images, theme, isTyping, isImageG
                 key="text"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className={`relative z-10 px-4 py-2.5 rounded-[2rem] font-google-sans ${isUser ? `${getAccentClasses()} shadow-sm` : 'glass-panel'} transition-all duration-300`}
+                className={`relative z-10 px-4 py-2.5 rounded-[2rem] font-sans ${isUser ? `${getAccentClasses()} shadow-sm` : 'glass-panel'} transition-all duration-300`}
               >
                 {images && images.length > 0 && (
                   <div className="mb-3 space-y-2">
@@ -187,12 +187,12 @@ const ChatMessage = memo(({ id, role, content, images, theme, isTyping, isImageG
                         />
                       );
                     },
-                p: ({node, ...props}) => <p className={`mb-3 last:mb-0 leading-relaxed text-[14.5px] font-normal ${isUser ? 'text-white' : (theme === 'dark' ? 'text-gray-100' : 'text-gray-800')}`} {...props} />,
-                a: ({node, ...props}) => <a className={`${isUser ? 'text-white underline' : 'text-pink-400 hover:text-pink-300 underline'} underline-offset-4 transition-colors text-[14.5px]`} {...props} />,
+                p: ({node, ...props}) => <p className={`mb-3 last:mb-0 leading-relaxed text-[16px] font-normal ${isUser ? 'text-white' : (theme === 'dark' ? 'text-gray-100' : 'text-gray-800')}`} {...props} />,
+                a: ({node, ...props}) => <a className={`${isUser ? 'text-white underline' : 'text-pink-400 hover:text-pink-300 underline'} underline-offset-4 transition-colors text-[16px]`} {...props} />,
                 strong: ({node, ...props}) => <strong className={`font-medium ${isUser ? 'text-white' : (theme === 'dark' ? 'text-white' : 'text-gray-900')}`} {...props} />,
-                ul: ({node, ...props}) => <ul className="list-disc pl-6 mb-3 space-y-2 text-[14.5px]" {...props} />,
-                ol: ({node, ...props}) => <ol className="list-decimal pl-6 mb-3 space-y-2 text-[14.5px]" {...props} />,
-                li: ({node, ...props}) => <li className={`leading-relaxed text-[14.5px] font-normal ${isUser ? 'text-white' : (theme === 'dark' ? 'text-gray-100' : 'text-gray-800')}`} {...props} />,
+                ul: ({node, ...props}) => <ul className="list-disc pl-6 mb-3 space-y-2 text-[16px]" {...props} />,
+                ol: ({node, ...props}) => <ol className="list-decimal pl-6 mb-3 space-y-2 text-[16px]" {...props} />,
+                li: ({node, ...props}) => <li className={`leading-relaxed text-[16px] font-normal ${isUser ? 'text-white' : (theme === 'dark' ? 'text-gray-100' : 'text-gray-800')}`} {...props} />,
                 blockquote: ({node, ...props}) => <blockquote className={`border-l-4 pl-4 italic my-3 ${isUser ? 'border-white/50 text-white/90' : (theme === 'dark' ? 'border-gray-500 text-gray-300' : 'border-gray-400 text-gray-600')}`} {...props} />,
                 code: ({node, className, children, ...props}) => {
                   const match = /language-(\w+)/.exec(className || '')

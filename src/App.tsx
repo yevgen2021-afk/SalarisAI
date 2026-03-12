@@ -1148,7 +1148,7 @@ export default function App() {
                     }
                   }}
                   placeholder="Ваш вопрос..."
-                  className={`flex-1 bg-transparent ${theme === 'dark' ? 'text-white' : 'text-gray-900'} placeholder-gray-500 resize-none max-h-32 h-[34px] min-h-[34px] py-[8px] px-4 focus:outline-none text-[14.5px] font-normal font-google-sans leading-tight`}
+                  className={`flex-1 bg-transparent ${theme === 'dark' ? 'text-white' : 'text-gray-900'} placeholder-gray-500 resize-none max-h-32 h-[34px] min-h-[34px] py-[8px] px-4 focus:outline-none text-[16px] font-normal font-sans leading-tight`}
                   rows={1}
                 />
                 <motion.button
