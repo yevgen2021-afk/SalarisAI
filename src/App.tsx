@@ -4,6 +4,7 @@ import { ArrowUp, Menu, Settings, Moon, Sun, Trash2, Info, X, SquarePen, Plus, P
 import { motion, AnimatePresence } from 'motion/react';
 import { Chat, Message } from './types';
 import { generateResponseStream, getApiKey } from './services/gemini';
+import { generateGroqResponseStream } from './services/groq';
 import ChatMessage from './components/ChatMessage';
 import Dashboard from './components/Dashboard';
 import Sidebar from './components/Sidebar';
@@ -45,7 +46,7 @@ export default function App() {
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
   const [isActionMenuInteracting, setIsActionMenuInteracting] = useState(false);
   const [actionMenuView, setActionMenuView] = useState<'main' | 'model'>('main');
-  const [selectedModel, setSelectedModel] = useState<'gemini-3-flash-preview' | 'gemini-3.1-pro-preview'>('gemini-3-flash-preview');
+  const [selectedModel, setSelectedModel] = useState<'gemini-3-flash-preview' | 'gemini-3.1-pro-preview' | 'llama-3.3-70b-versatile' | 'gemma2-9b-it'>('gemini-3-flash-preview');
   const [isThinkingMode, setIsThinkingMode] = useState<boolean>(false);
 
   // Load data from localforage on mount
@@ -75,8 +76,8 @@ export default function App() {
         if (storedTheme) setTheme(storedTheme);
         if (storedAccentColor) setAccentColor(storedAccentColor);
         if (storedGlow !== null) setIsGlowEnabled(storedGlow);
-        if (storedModel === 'gemini-3-flash-preview' || storedModel === 'gemini-3.1-pro-preview') {
-          setSelectedModel(storedModel as 'gemini-3-flash-preview' | 'gemini-3.1-pro-preview');
+        if (['gemini-3-flash-preview', 'gemini-3.1-pro-preview', 'llama-3.3-70b-versatile', 'gemma2-9b-it'].includes(storedModel || '')) {
+          setSelectedModel(storedModel as any);
         } else {
           setSelectedModel('gemini-3-flash-preview');
           localforage.setItem('salaris_model', 'gemini-3-flash-preview');
@@ -306,10 +307,14 @@ export default function App() {
 
     try {
       const chatHistory = activeChat ? activeChat.messages : [];
-      const stream = generateResponseStream(userMsg, {
-        model: selectedModel,
-        thinkingMode: currentThinkingMode
-      }, chatHistory);
+      const isGroq = selectedModel.includes('llama') || selectedModel.includes('gemma');
+      
+      const stream = isGroq 
+        ? generateGroqResponseStream(userMsg, selectedModel, chatHistory)
+        : generateResponseStream(userMsg, {
+            model: selectedModel as any,
+            thinkingMode: currentThinkingMode
+          }, chatHistory);
 
       let isFirstChunk = true;
       let currentTyped = '';
@@ -441,10 +446,14 @@ export default function App() {
 
     try {
       const chatHistory = activeChat ? activeChat.messages.slice(0, lastUserMsgIndex) : [];
-      const stream = generateResponseStream(userMsgContent, {
-        model: selectedModel,
-        thinkingMode: isThinkingMode
-      }, chatHistory);
+      const isGroq = selectedModel.includes('llama') || selectedModel.includes('gemma');
+      
+      const stream = isGroq 
+        ? generateGroqResponseStream(userMsgContent, selectedModel, chatHistory)
+        : generateResponseStream(userMsgContent, {
+            model: selectedModel as any,
+            thinkingMode: isThinkingMode
+          }, chatHistory);
 
       let isFirstChunk = true;
       let currentTyped = '';
@@ -823,7 +832,10 @@ export default function App() {
                             Модель
                           </div>
                           <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                            {selectedModel === 'gemini-3-flash-preview' ? 'SalarisAI classic' : 'SalarisAI Pro'}
+                            {selectedModel === 'gemini-3-flash-preview' ? 'SalarisAI classic' : 
+                             selectedModel === 'gemini-3.1-pro-preview' ? 'SalarisAI Pro' :
+                             selectedModel === 'llama-3.3-70b-versatile' ? 'Llama 3.3 (Groq)' :
+                             'Gemma 2 (Groq)'}
                           </span>
                         </motion.button>
 
@@ -856,9 +868,13 @@ export default function App() {
                           </motion.button>
                           <span className="font-medium">Выберите модель</span>
                         </div>
+                        
+                        <div className={`px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>
+                          Google Gemini
+                        </div>
                         <button 
                           onClick={() => { setSelectedModel('gemini-3-flash-preview'); setActionMenuView('main'); }}
-                          className={`flex items-center justify-between px-4 py-3 rounded-full text-sm font-medium transition-colors ${
+                          className={`flex items-center justify-between px-4 py-2.5 rounded-full text-sm font-medium transition-colors ${
                             theme === 'dark' 
                               ? 'hover:bg-white/10 active:bg-white/20 text-white' 
                               : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
@@ -869,7 +885,7 @@ export default function App() {
                         </button>
                         <button 
                           onClick={() => { setSelectedModel('gemini-3.1-pro-preview'); setActionMenuView('main'); }}
-                          className={`flex items-center justify-between px-4 py-3 rounded-full text-sm font-medium transition-colors ${
+                          className={`flex items-center justify-between px-4 py-2.5 rounded-full text-sm font-medium transition-colors ${
                             theme === 'dark' 
                               ? 'hover:bg-white/10 active:bg-white/20 text-white' 
                               : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
@@ -877,6 +893,32 @@ export default function App() {
                         >
                           SalarisAI Pro
                           {selectedModel === 'gemini-3.1-pro-preview' && <Check className="w-4 h-4" />}
+                        </button>
+
+                        <div className={`px-4 py-1.5 mt-1 text-[10px] font-bold uppercase tracking-wider ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>
+                          Groq (Fast)
+                        </div>
+                        <button 
+                          onClick={() => { setSelectedModel('llama-3.3-70b-versatile'); setActionMenuView('main'); }}
+                          className={`flex items-center justify-between px-4 py-2.5 rounded-full text-sm font-medium transition-colors ${
+                            theme === 'dark' 
+                              ? 'hover:bg-white/10 active:bg-white/20 text-white' 
+                              : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
+                          }`}
+                        >
+                          Llama 3.3 70B
+                          {selectedModel === 'llama-3.3-70b-versatile' && <Check className="w-4 h-4" />}
+                        </button>
+                        <button 
+                          onClick={() => { setSelectedModel('gemma2-9b-it'); setActionMenuView('main'); }}
+                          className={`flex items-center justify-between px-4 py-2.5 rounded-full text-sm font-medium transition-colors ${
+                            theme === 'dark' 
+                              ? 'hover:bg-white/10 active:bg-white/20 text-white' 
+                              : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
+                          }`}
+                        >
+                          Gemma 2 9B
+                          {selectedModel === 'gemma2-9b-it' && <Check className="w-4 h-4" />}
                         </button>
                       </div>
                     </motion.div>
