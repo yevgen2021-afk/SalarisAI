@@ -13,6 +13,11 @@
     <title>SalarisAI</title>
   </head>
   <body>
+    <script>
+      window.addEventListener('error', function(e) {
+        document.body.innerHTML = '<div style="color:red;padding:20px;background:black;height:100vh;"><h1>Global Error</h1><pre>' + (e.error ? e.error.stack : e.message) + '</pre></div>';
+      });
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

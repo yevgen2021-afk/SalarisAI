@@ -49,18 +49,6 @@ const Dashboard = ({ theme, onActionClick }: DashboardProps) => {
       >
         {/* Widgets Container */}
         <div className="flex flex-col items-start gap-3 mb-8">
-          {/* Image Widget */}
-          <HoverWidget 
-            onClick={() => onActionClick("Нарисуй ")}
-            glowColor="rgba(253, 224, 71, 0.4)"
-            className="flex items-center gap-3 px-5 py-3 rounded-full bg-gradient-to-r from-yellow-400 to-amber-500 shadow-[0_8px_16px_rgba(251,191,36,0.3)] text-white cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all border border-yellow-300/30 w-fit"
-          >
-            <span className="relative z-10 text-xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]">🌷</span>
-            <span className="relative z-10 text-[14px] font-medium tracking-wide drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
-              Изображение
-            </span>
-          </HoverWidget>
-
           {/* Action Widget */}
           <HoverWidget 
             onClick={() => onActionClick("Укрась мой день")}

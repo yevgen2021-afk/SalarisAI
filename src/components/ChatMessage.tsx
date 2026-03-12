@@ -7,34 +7,25 @@ interface ChatMessageProps {
   id: string;
   role: 'user' | 'model';
   content: string;
-  images?: string[];
   theme: 'dark' | 'light';
   isTyping?: boolean;
-  isImageGen?: boolean;
   accentColor: string;
   isGlowEnabled: boolean;
   onRegenerate?: (id: string) => void;
 }
 
-const ChatMessage = memo(({ id, role, content, images, theme, isTyping, isImageGen, accentColor, isGlowEnabled, onRegenerate }: ChatMessageProps) => {
+const ChatMessage = memo(({ id, role, content, theme, isTyping, accentColor, isGlowEnabled, onRegenerate }: ChatMessageProps) => {
   const isUser = role === 'user';
   const [showFinishGlow, setShowFinishGlow] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [showActions, setShowActions] = useState(!isTyping);
-  const [isImageReady, setIsImageReady] = useState(false);
   const prevIsTyping = useRef(isTyping);
 
   useEffect(() => {
     let glowTimer: NodeJS.Timeout;
     let actionTimer: NodeJS.Timeout;
 
-    if (isImageGen && isImageReady) {
-      if (isGlowEnabled) {
-        setShowFinishGlow(true);
-        glowTimer = setTimeout(() => setShowFinishGlow(false), 1500);
-      }
-      actionTimer = setTimeout(() => setShowActions(true), 1500);
-    } else if (prevIsTyping.current === true && isTyping === false) {
+    if (prevIsTyping.current === true && isTyping === false) {
       if (isGlowEnabled) {
         setShowFinishGlow(true);
         glowTimer = setTimeout(() => setShowFinishGlow(false), 1500);
@@ -52,7 +43,7 @@ const ChatMessage = memo(({ id, role, content, images, theme, isTyping, isImageG
       clearTimeout(actionTimer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isTyping, isImageGen, isImageReady]);
+  }, [isTyping]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(content);
@@ -119,59 +110,12 @@ const ChatMessage = memo(({ id, role, content, images, theme, isTyping, isImageG
           )}
 
           <AnimatePresence mode="wait">
-            {isImageGen && isTyping ? (
-              <motion.div
-                key="generating"
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0, opacity: 0, transition: { duration: 0.15 } }}
-                className="relative z-10 px-6 py-4 rounded-[2rem] glass-panel flex items-center gap-3 w-fit"
-              >
-                <div className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: accentColor === 'laguna' ? '#06b6d4' : accentColor === 'pink' ? '#f472b6' : accentColor === 'purple' ? '#a855f7' : accentColor === 'emerald' ? '#34d399' : accentColor === 'red' ? '#ef4444' : '#f97316', borderTopColor: 'transparent' }}></div>
-                <span className={`text-sm font-medium animate-pulse ${getAccentTextClass()}`}>Генерация изображения...</span>
-              </motion.div>
-            ) : isImageGen && !isTyping ? (
-              <motion.div
-                key="image"
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                onAnimationComplete={() => setIsImageReady(true)}
-                className="relative z-10"
-              >
-                <img
-                  src={content.match(/!\[\]\((.*?)\)/)?.[1] || ''}
-                  alt="Generated"
-                  className="rounded-[2rem] max-w-full h-auto shadow-[0_8px_30px_rgba(0,0,0,0.12)]"
-                  onLoad={(e) => {
-                    const chatContainer = document.querySelector('main');
-                    if (chatContainer) {
-                      chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
-                    }
-                  }}
-                />
-              </motion.div>
-            ) : (
               <motion.div
                 key="text"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 className={`relative z-10 px-4 py-2.5 rounded-[2rem] font-sans ${isUser ? `${getAccentClasses()} shadow-sm` : 'glass-panel'} transition-all duration-300`}
               >
-                {images && images.length > 0 && (
-                  <div className="mb-3 space-y-2">
-                    {images.map((img, index) => (
-                      img ? (
-                        <img 
-                          key={index} 
-                          src={img} 
-                          alt="Attached" 
-                          className="rounded-xl max-w-full h-auto object-cover border border-white/10 shadow-sm" 
-                        />
-                      ) : null
-                    ))}
-                  </div>
-                )}
                 <ReactMarkdown 
                   urlTransform={(url) => url}
                   components={{
@@ -211,7 +155,6 @@ const ChatMessage = memo(({ id, role, content, images, theme, isTyping, isImageG
               {content}
             </ReactMarkdown>
           </motion.div>
-          )}
         </AnimatePresence>
         </div>
 

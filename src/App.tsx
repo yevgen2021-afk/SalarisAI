@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-// Force sync for GitHub export 2
 import localforage from 'localforage';
 import { ArrowUp, Menu, Settings, Moon, Sun, Trash2, Info, X, SquarePen, Plus, Paintbrush, ChevronLeft, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -46,9 +45,8 @@ export default function App() {
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
   const [isActionMenuInteracting, setIsActionMenuInteracting] = useState(false);
   const [actionMenuView, setActionMenuView] = useState<'main' | 'model'>('main');
-  const [selectedModel, setSelectedModel] = useState<'gemini-2.5-flash' | 'gemini-2.5-pro'>('gemini-2.5-flash');
+  const [selectedModel, setSelectedModel] = useState<'gemini-3-flash-preview' | 'gemini-3.1-pro-preview'>('gemini-3-flash-preview');
   const [isThinkingMode, setIsThinkingMode] = useState<boolean>(false);
-  const [isExplicitImageMode, setIsExplicitImageMode] = useState<boolean>(false);
 
   // Load data from localforage on mount
   useEffect(() => {
@@ -77,11 +75,11 @@ export default function App() {
         if (storedTheme) setTheme(storedTheme);
         if (storedAccentColor) setAccentColor(storedAccentColor);
         if (storedGlow !== null) setIsGlowEnabled(storedGlow);
-        if (storedModel === 'gemini-2.5-flash' || storedModel === 'gemini-2.5-pro') {
-          setSelectedModel(storedModel as 'gemini-2.5-flash' | 'gemini-2.5-pro');
+        if (storedModel === 'gemini-3-flash-preview' || storedModel === 'gemini-3.1-pro-preview') {
+          setSelectedModel(storedModel as 'gemini-3-flash-preview' | 'gemini-3.1-pro-preview');
         } else {
-          setSelectedModel('gemini-2.5-flash');
-          localforage.setItem('salaris_model', 'gemini-2.5-flash');
+          setSelectedModel('gemini-3-flash-preview');
+          localforage.setItem('salaris_model', 'gemini-3-flash-preview');
         }
       } catch (error) {
         // Silently handle localforage load errors
@@ -104,7 +102,6 @@ export default function App() {
     localforage.setItem('salaris_model', selectedModel);
   }, [chats, activeChatId, theme, accentColor, isGlowEnabled, selectedModel, isLoaded]);
 
-  const [attachedImage, setAttachedImage] = useState<{ data: string, mimeType: string } | null>(null);
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
 
@@ -273,44 +270,23 @@ export default function App() {
     setIsSidebarOpen(false);
   }, []);
 
-  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const base64 = event.target?.result as string;
-        const [mime, data] = base64.split(';base64,');
-        setAttachedImage({
-          mimeType: mime.split(':')[1],
-          data: data
-        });
-      };
-      reader.readAsDataURL(file);
-    }
-  }, []);
-
   const handleSend = useCallback(async () => {
-    if ((!input.trim() && !attachedImage) || isLoading) return;
+    if (!input.trim() || isLoading) return;
 
     const userMsg = input.trim();
-    const currentImage = attachedImage;
     const currentThinkingMode = isThinkingMode;
-    const currentExplicitImageMode = isExplicitImageMode;
     
     setInput('');
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
-    setAttachedImage(null);
     setIsThinkingMode(false);
-    setIsExplicitImageMode(false);
     setIsLoading(true);
 
     const userMessage: Message = { 
       id: Date.now().toString(), 
       role: 'user', 
-      content: userMsg,
-      images: currentImage ? [`data:${currentImage.mimeType};base64,${currentImage.data}`] : undefined
+      content: userMsg
     };
 
     setChats(prev => prev.map(chat => {
@@ -329,84 +305,54 @@ export default function App() {
     const modelMessageId = (Date.now() + 1).toString();
 
     try {
-      const imageKeywords = ['нарисуй', 'изобрази', 'сгенерируй', 'создай картинку', 'создай изображение', 'draw', 'generate image', 'create image', 'picture of', 'image of'];
-      const isImageGen = currentExplicitImageMode || imageKeywords.some(keyword => userMsg.toLowerCase().includes(keyword)) || !!(currentImage && (userMsg.toLowerCase().includes('иконк') || userMsg.toLowerCase().includes('сделай') || userMsg.toLowerCase().includes('создай')));
-      
-      if (isImageGen) {
-        setIsLoading(false);
-        setChats(prev => prev.map(chat => {
-          if (chat.id === targetChatId) {
-            return { ...chat, messages: [...chat.messages, { id: modelMessageId, role: 'model', content: '', isTyping: true, isImageGen: true }] };
-          }
-          return chat;
-        }));
-      }
-
       const chatHistory = activeChat ? activeChat.messages : [];
-      const stream = generateResponseStream(userMsg, currentImage, {
+      const stream = generateResponseStream(userMsg, {
         model: selectedModel,
-        thinkingMode: currentThinkingMode,
-        isImageGeneration: isImageGen
+        thinkingMode: currentThinkingMode
       }, chatHistory);
 
-      if (isImageGen) {
-        let fullContent = '';
-        for await (const chunkText of stream) {
-          fullContent += chunkText;
+      let isFirstChunk = true;
+      let currentTyped = '';
+      for await (const chunkText of stream) {
+        if (isFirstChunk) {
+          setIsLoading(false); // Stop showing typing indicator once we start receiving the response
+          // Add empty message first to start typing
+          setChats(prev => prev.map(chat => {
+            if (chat.id === targetChatId) {
+              return { ...chat, messages: [...chat.messages, { id: modelMessageId, role: 'model', content: '', isTyping: true }] };
+            }
+            return chat;
+          }));
+          isFirstChunk = false;
         }
-        setChats(prev => prev.map(chat => {
-          if (chat.id === targetChatId) {
-            return {
-              ...chat,
-              messages: chat.messages.map(m => m.id === modelMessageId ? { ...m, content: fullContent, isTyping: false } : m)
-            };
-          }
-          return chat;
-        }));
-      } else {
-        let isFirstChunk = true;
-        let currentTyped = '';
-        for await (const chunkText of stream) {
-          if (isFirstChunk) {
-            setIsLoading(false); // Stop showing typing indicator once we start receiving the response
-            // Add empty message first to start typing
-            setChats(prev => prev.map(chat => {
-              if (chat.id === targetChatId) {
-                return { ...chat, messages: [...chat.messages, { id: modelMessageId, role: 'model', content: '', isTyping: true }] };
-              }
-              return chat;
-            }));
-            isFirstChunk = false;
-          }
-          
-          const tokens = chunkText.match(/(\s+|\S+)/g) || [];
-          for (const token of tokens) {
-            currentTyped += token;
-            setChats(prev => prev.map(chat => {
-              if (chat.id === targetChatId) {
-                return {
-                  ...chat,
-                  messages: chat.messages.map(m => m.id === modelMessageId ? { ...m, content: currentTyped, isTyping: true } : m)
-                };
-              }
-              return chat;
-            }));
-            // Small delay for natural typing feel
-            await new Promise(resolve => setTimeout(resolve, 20 + Math.random() * 20));
-          }
+        
+        const tokens = chunkText.match(/(\s+|\S+)/g) || [];
+        for (const token of tokens) {
+          currentTyped += token;
+          setChats(prev => prev.map(chat => {
+            if (chat.id === targetChatId) {
+              return {
+                ...chat,
+                messages: chat.messages.map(m => m.id === modelMessageId ? { ...m, content: currentTyped, isTyping: true } : m)
+              };
+            }
+            return chat;
+          }));
+          // Small delay for natural typing feel
+          await new Promise(resolve => setTimeout(resolve, 20 + Math.random() * 20));
         }
-
-        // Finish typing
-        setChats(prev => prev.map(chat => {
-          if (chat.id === targetChatId) {
-            return {
-              ...chat,
-              messages: chat.messages.map(m => m.id === modelMessageId ? { ...m, isTyping: false } : m)
-            };
-          }
-          return chat;
-        }));
       }
+
+      // Finish typing
+      setChats(prev => prev.map(chat => {
+        if (chat.id === targetChatId) {
+          return {
+            ...chat,
+            messages: chat.messages.map(m => m.id === modelMessageId ? { ...m, isTyping: false } : m)
+          };
+        }
+        return chat;
+      }));
 
     } catch (error) {
       let errorText = 'Произошла ошибка связи с сервером. Пожалуйста, попробуйте позже.';
@@ -457,7 +403,7 @@ export default function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [input, attachedImage, isLoading, activeChatId, selectedModel, isThinkingMode, isExplicitImageMode, chats]);
+  }, [input, isLoading, activeChatId, selectedModel, isThinkingMode, chats]);
 
   const handleRegenerate = useCallback(async (messageId: string) => {
     const chat = chats.find(c => c.id === activeChatId);
@@ -478,14 +424,6 @@ export default function App() {
     const lastUserMsg = chat.messages[lastUserMsgIndex];
     const userMsgContent = lastUserMsg.content;
     
-    let currentImage = null;
-    if (lastUserMsg.images && lastUserMsg.images.length > 0) {
-      const dataUrl = lastUserMsg.images[0];
-      const [mimePart, data] = dataUrl.split(';base64,');
-      const mimeType = mimePart.split(':')[1];
-      currentImage = { mimeType, data };
-    }
-    
     setChats(prev => prev.map(c => {
       if (c.id === activeChatId) {
         return {
@@ -502,81 +440,51 @@ export default function App() {
     const modelMessageId = Date.now().toString();
 
     try {
-      const imageKeywords = ['нарисуй', 'изобрази', 'сгенерируй', 'создай картинку', 'создай изображение', 'draw', 'generate image', 'create image', 'picture of', 'image of'];
-      const isImageGen = imageKeywords.some(keyword => userMsgContent.toLowerCase().includes(keyword)) || !!(currentImage && (userMsgContent.toLowerCase().includes('иконк') || userMsgContent.toLowerCase().includes('сделай') || userMsgContent.toLowerCase().includes('создай')));
-
-      if (isImageGen) {
-        setIsLoading(false);
-        setChats(prev => prev.map(c => {
-          if (c.id === targetChatId) {
-            return { ...c, messages: [...c.messages, { id: modelMessageId, role: 'model', content: '', isTyping: true, isImageGen: true }] };
-          }
-          return c;
-        }));
-      }
-
       const chatHistory = activeChat ? activeChat.messages.slice(0, lastUserMsgIndex) : [];
-      const stream = generateResponseStream(userMsgContent, currentImage, {
+      const stream = generateResponseStream(userMsgContent, {
         model: selectedModel,
-        thinkingMode: isThinkingMode,
-        isImageGeneration: isImageGen
+        thinkingMode: isThinkingMode
       }, chatHistory);
 
-      if (isImageGen) {
-        let fullContent = '';
-        for await (const chunkText of stream) {
-          fullContent += chunkText;
+      let isFirstChunk = true;
+      let currentTyped = '';
+      for await (const chunkText of stream) {
+        if (isFirstChunk) {
+          setIsLoading(false);
+          setChats(prev => prev.map(c => {
+            if (c.id === targetChatId) {
+              return { ...c, messages: [...c.messages, { id: modelMessageId, role: 'model', content: '', isTyping: true }] };
+            }
+            return c;
+          }));
+          isFirstChunk = false;
         }
-        setChats(prev => prev.map(c => {
-          if (c.id === targetChatId) {
-            return {
-              ...c,
-              messages: c.messages.map(m => m.id === modelMessageId ? { ...m, content: fullContent, isTyping: false } : m)
-            };
-          }
-          return c;
-        }));
-      } else {
-        let isFirstChunk = true;
-        let currentTyped = '';
-        for await (const chunkText of stream) {
-          if (isFirstChunk) {
-            setIsLoading(false);
-            setChats(prev => prev.map(c => {
-              if (c.id === targetChatId) {
-                return { ...c, messages: [...c.messages, { id: modelMessageId, role: 'model', content: '', isTyping: true }] };
-              }
-              return c;
-            }));
-            isFirstChunk = false;
-          }
-          
-          const tokens = chunkText.match(/(\s+|\S+)/g) || [];
-          for (const token of tokens) {
-            currentTyped += token;
-            setChats(prev => prev.map(c => {
-              if (c.id === targetChatId) {
-                return {
-                  ...c,
-                  messages: c.messages.map(m => m.id === modelMessageId ? { ...m, content: currentTyped, isTyping: true } : m)
-                };
-              }
-              return c;
-            }));
-            await new Promise(resolve => setTimeout(resolve, 20 + Math.random() * 20));
-          }
+        
+        const tokens = chunkText.match(/(\s+|\S+)/g) || [];
+        for (const token of tokens) {
+          currentTyped += token;
+          setChats(prev => prev.map(c => {
+            if (c.id === targetChatId) {
+              return {
+                ...c,
+                messages: c.messages.map(m => m.id === modelMessageId ? { ...m, content: currentTyped, isTyping: true } : m)
+              };
+            }
+            return c;
+          }));
+          await new Promise(resolve => setTimeout(resolve, 20 + Math.random() * 20));
         }
-
-        setChats(prev => prev.map(c => {
-          if (c.id === targetChatId) {
-            return {
-              ...c,
-              messages: c.messages.map(m => m.id === modelMessageId ? { ...m, isTyping: false } : m)
-            };
-          }
-          return c;
-        }));
       }
+
+      setChats(prev => prev.map(c => {
+        if (c.id === targetChatId) {
+          return {
+            ...c,
+            messages: c.messages.map(m => m.id === modelMessageId ? { ...m, isTyping: false } : m)
+          };
+        }
+        return c;
+      }));
 
     } catch (error) {
       let errorText = 'Произошла ошибка связи с сервером. Пожалуйста, попробуйте позже.';
@@ -760,10 +668,8 @@ export default function App() {
                     id={msg.id}
                     role={msg.role} 
                     content={msg.content} 
-                    images={msg.images}
                     theme={theme} 
                     isTyping={msg.isTyping} 
-                    isImageGen={msg.isImageGen}
                     accentColor={accentColor}
                     isGlowEnabled={isGlowEnabled}
                     onRegenerate={handleRegenerate}
@@ -862,51 +768,6 @@ export default function App() {
                       className={`absolute bottom-0 left-0 z-[200] w-64 rounded-[2rem] overflow-hidden p-2 hyper-glass hyper-glass-shadow`}
                     >
                       <div className="flex flex-col">
-                        <motion.label
-                          onTapStart={() => setIsActionMenuInteracting(true)}
-                          onTap={() => setIsActionMenuInteracting(false)}
-                          onTapCancel={() => setIsActionMenuInteracting(false)}
-                          className={`w-full flex items-center gap-3 px-4 py-3 rounded-full text-sm font-medium transition-colors cursor-pointer ${
-                            theme === 'dark' 
-                              ? 'hover:bg-white/10 active:bg-white/20 text-white' 
-                              : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
-                          }`}
-                        >
-                          <Plus className="w-4 h-4" />
-                          Добавить
-                          <input type="file" accept="image/*" className="hidden" onChange={(e) => {
-                            handleFileChange(e);
-                            setIsActionMenuOpen(false);
-                          }} />
-                        </motion.label>
-
-                        <motion.button
-                          onTapStart={() => setIsActionMenuInteracting(true)}
-                          onTap={() => setIsActionMenuInteracting(false)}
-                          onTapCancel={() => setIsActionMenuInteracting(false)}
-                          onClick={() => {
-                            setIsExplicitImageMode(!isExplicitImageMode);
-                            setIsActionMenuOpen(false);
-                          }}
-                          className={`w-full flex items-center justify-between px-4 py-3 rounded-full text-sm font-medium transition-colors ${
-                            theme === 'dark' 
-                              ? 'hover:bg-white/10 active:bg-white/20 text-white' 
-                              : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={isExplicitImageMode ? getAccentClass('text') : ''}>
-                              <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
-                              <path d="m12 18 3-3" />
-                              <path d="m12 18-3-3" />
-                              <path d="M12 18V8" />
-                              <path d="M8 12h8" />
-                            </svg>
-                            <span className={isExplicitImageMode ? getAccentClass('text') : ''}>Изображение</span>
-                          </div>
-                          {isExplicitImageMode && <Check className={`w-4 h-4 ${getAccentClass('text')}`} />}
-                        </motion.button>
-
                         <motion.button
                           onTapStart={() => setIsActionMenuInteracting(true)}
                           onTap={() => setIsActionMenuInteracting(false)}
@@ -962,7 +823,7 @@ export default function App() {
                             Модель
                           </div>
                           <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                            {selectedModel === 'gemini-2.5-flash' ? 'SalarisAI classic' : 'SalarisAI Pro'}
+                            {selectedModel === 'gemini-3-flash-preview' ? 'SalarisAI classic' : 'SalarisAI Pro'}
                           </span>
                         </motion.button>
 
@@ -996,7 +857,7 @@ export default function App() {
                           <span className="font-medium">Выберите модель</span>
                         </div>
                         <button 
-                          onClick={() => { setSelectedModel('gemini-2.5-flash'); setActionMenuView('main'); }}
+                          onClick={() => { setSelectedModel('gemini-3-flash-preview'); setActionMenuView('main'); }}
                           className={`flex items-center justify-between px-4 py-3 rounded-full text-sm font-medium transition-colors ${
                             theme === 'dark' 
                               ? 'hover:bg-white/10 active:bg-white/20 text-white' 
@@ -1004,10 +865,10 @@ export default function App() {
                           }`}
                         >
                           SalarisAI classic
-                          {selectedModel === 'gemini-2.5-flash' && <Check className="w-4 h-4" />}
+                          {selectedModel === 'gemini-3-flash-preview' && <Check className="w-4 h-4" />}
                         </button>
                         <button 
-                          onClick={() => { setSelectedModel('gemini-2.5-pro'); setActionMenuView('main'); }}
+                          onClick={() => { setSelectedModel('gemini-3.1-pro-preview'); setActionMenuView('main'); }}
                           className={`flex items-center justify-between px-4 py-3 rounded-full text-sm font-medium transition-colors ${
                             theme === 'dark' 
                               ? 'hover:bg-white/10 active:bg-white/20 text-white' 
@@ -1015,7 +876,7 @@ export default function App() {
                           }`}
                         >
                           SalarisAI Pro
-                          {selectedModel === 'gemini-2.5-pro' && <Check className="w-4 h-4" />}
+                          {selectedModel === 'gemini-3.1-pro-preview' && <Check className="w-4 h-4" />}
                         </button>
                       </div>
                     </motion.div>
@@ -1042,7 +903,7 @@ export default function App() {
                 
                 {/* Top section: Pills and Image Preview */}
                 <AnimatePresence initial={false}>
-                  {(attachedImage || isThinkingMode || isExplicitImageMode) && (
+                  {isThinkingMode && (
                     <motion.div 
                       key="pills-container"
                       initial={{ height: 0, opacity: 0 }}
@@ -1053,27 +914,6 @@ export default function App() {
                     >
                       <div className="flex flex-wrap items-center gap-2 px-3 pt-2 pb-1.5 pointer-events-auto">
                         <AnimatePresence>
-                          {attachedImage && (
-                            <motion.div 
-                              key="attached-image"
-                              initial={{ scale: 0.8, opacity: 0 }}
-                              animate={{ scale: 1, opacity: 1 }}
-                              exit={{ scale: 0.8, opacity: 0 }}
-                              className="relative inline-block"
-                            >
-                              <img 
-                                src={`data:${attachedImage.mimeType};base64,${attachedImage.data}`} 
-                                alt="Attachment" 
-                                className="w-10 h-10 object-cover rounded-xl border border-white/20 shadow-sm"
-                              />
-                              <button 
-                                onClick={() => setAttachedImage(null)} 
-                                className={`absolute -top-2 -right-2 rounded-full p-0.5 shadow-md transition-colors ${theme === 'dark' ? 'bg-gray-800 text-white hover:bg-gray-700' : 'bg-white text-gray-800 hover:bg-gray-100 border border-gray-200'}`}
-                              >
-                                <X className="w-3 h-3" />
-                              </button>
-                            </motion.div>
-                          )}
                           {isThinkingMode && (
                             <motion.div 
                               key="thinking-mode"
@@ -1099,27 +939,6 @@ export default function App() {
                               </svg>
                               <span className={`text-[13px] font-medium ${getAccentClass('text')}`}>Размышление</span>
                               <button onClick={() => setIsThinkingMode(false)} className={`ml-1 ${getAccentClass('text')} hover:opacity-70 transition-opacity`}>
-                                <X className="w-3.5 h-3.5" />
-                              </button>
-                            </motion.div>
-                          )}
-                          {isExplicitImageMode && (
-                            <motion.div 
-                              key="image-mode"
-                              initial={{ scale: 0.8, opacity: 0 }}
-                              animate={{ scale: 1, opacity: 1 }}
-                              exit={{ scale: 0.8, opacity: 0 }}
-                              className={`flex items-center gap-1.5 shadow-sm rounded-full px-3 py-1.5 border ${theme === 'dark' ? 'bg-[#2a2a2a] border-white/10' : 'bg-white border-gray-100'}`}
-                            >
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={getAccentClass('text')}>
-                                <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
-                                <path d="m12 18 3-3" />
-                                <path d="m12 18-3-3" />
-                                <path d="M12 18V8" />
-                                <path d="M8 12h8" />
-                              </svg>
-                              <span className={`text-[13px] font-medium ${getAccentClass('text')}`}>Изображение</span>
-                              <button onClick={() => setIsExplicitImageMode(false)} className={`ml-1 ${getAccentClass('text')} hover:opacity-70 transition-opacity`}>
                                 <X className="w-3.5 h-3.5" />
                               </button>
                             </motion.div>
@@ -1155,9 +974,9 @@ export default function App() {
                   whileTap={{ scale: 1.1 }}
                   style={{ willChange: "transform" }}
                   onClick={handleSend}
-                  disabled={(!input.trim() && !attachedImage) || isLoading}
+                  disabled={!input.trim() || isLoading}
                   className={`w-[34px] h-[34px] flex items-center justify-center rounded-full transition-all duration-300 flex-shrink-0 shadow-sm ${
-                    (!input.trim() && !attachedImage)
+                    !input.trim()
                       ? (theme === 'dark' ? 'bg-white/5 text-gray-500' : 'bg-gray-100 text-gray-400')
                       : `${getAccentClass('bg')} ${getAccentClass('hover')} text-white ${getAccentClass('shadow')}`
                   } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
