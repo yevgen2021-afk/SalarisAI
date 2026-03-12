@@ -36,8 +36,7 @@ if (!apiKey) {
 // We instantiate the AI client dynamically inside the function to ensure it picks up the latest key
 // if it's somehow injected later, but we keep a fallback instance just in case.
 let ai = new GoogleGenAI({ 
-  apiKey: apiKey || 'dummy-key',
-  baseUrl: 'https://generativelanguage.googleapis.com'
+  apiKey: apiKey || 'dummy-key'
 });
 
 export interface GenerateOptions {
@@ -61,8 +60,7 @@ export const generateResponseStream = async function*(
   // Always use the freshest key and explicitly set the Google base URL
   // to prevent any third-party tools or env vars from redirecting to OpenRouter
   ai = new GoogleGenAI({ 
-    apiKey: currentApiKey,
-    baseUrl: 'https://generativelanguage.googleapis.com'
+    apiKey: currentApiKey
   });
 
   // Enhanced detection for image generation requests

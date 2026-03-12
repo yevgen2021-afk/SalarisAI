@@ -325,13 +325,13 @@ export default function App() {
       return chat;
     }));
 
+    const targetChatId = activeChatId;
+    const modelMessageId = (Date.now() + 1).toString();
+
     try {
       const imageKeywords = ['нарисуй', 'изобрази', 'сгенерируй', 'создай картинку', 'создай изображение', 'draw', 'generate image', 'create image', 'picture of', 'image of'];
       const isImageGen = currentExplicitImageMode || imageKeywords.some(keyword => userMsg.toLowerCase().includes(keyword)) || !!(currentImage && (userMsg.toLowerCase().includes('иконк') || userMsg.toLowerCase().includes('сделай') || userMsg.toLowerCase().includes('создай')));
       
-      const targetChatId = activeChatId;
-      const modelMessageId = (Date.now() + 1).toString();
-
       if (isImageGen) {
         setIsLoading(false);
         setChats(prev => prev.map(chat => {
@@ -498,12 +498,12 @@ export default function App() {
     
     setIsLoading(true);
     
+    const targetChatId = activeChatId;
+    const modelMessageId = Date.now().toString();
+
     try {
       const imageKeywords = ['нарисуй', 'изобрази', 'сгенерируй', 'создай картинку', 'создай изображение', 'draw', 'generate image', 'create image', 'picture of', 'image of'];
       const isImageGen = imageKeywords.some(keyword => userMsgContent.toLowerCase().includes(keyword)) || !!(currentImage && (userMsgContent.toLowerCase().includes('иконк') || userMsgContent.toLowerCase().includes('сделай') || userMsgContent.toLowerCase().includes('создай')));
-
-      const targetChatId = activeChatId;
-      const modelMessageId = Date.now().toString();
 
       if (isImageGen) {
         setIsLoading(false);
