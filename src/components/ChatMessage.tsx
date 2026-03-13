@@ -1,6 +1,9 @@
 import React, { useState, useRef, useEffect, memo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { ThumbsUp, ThumbsDown, Copy, Check, RefreshCw } from 'lucide-react';
 
 interface ChatMessageProps {
@@ -118,6 +121,7 @@ const ChatMessage = memo(({ id, role, content, theme, isTyping, accentColor, isG
               >
                 <ReactMarkdown 
                   urlTransform={(url) => url}
+                  remarkPlugins={[remarkGfm]}
                   components={{
                     img: ({node, ...props}) => {
                       if (!props.src) return null;
@@ -140,16 +144,41 @@ const ChatMessage = memo(({ id, role, content, theme, isTyping, accentColor, isG
                 blockquote: ({node, ...props}) => <blockquote className={`border-l-4 pl-4 italic my-3 ${isUser ? 'border-white/50 text-white/90' : (theme === 'dark' ? 'border-gray-500 text-gray-300' : 'border-gray-400 text-gray-600')}`} {...props} />,
                 code: ({node, className, children, ...props}) => {
                   const match = /language-(\w+)/.exec(className || '')
-                  return match ? (
-                    <pre className={`${isUser ? 'bg-black/10 text-white' : 'glass-panel'} rounded-xl p-4 overflow-x-auto my-4 text-sm font-mono leading-relaxed`}>
-                      <code className={className} {...props}>{children}</code>
-                    </pre>
-                  ) : (
-                    <code className={`${isUser ? 'bg-black/10 text-white' : 'glass-panel'} px-2 py-0.5 rounded-md text-sm font-mono`} {...props}>
+                  const isInline = !match && !className;
+                  
+                  if (!isInline && match) {
+                    return (
+                      <div className="my-4 rounded-xl overflow-hidden border border-white/10 shadow-sm">
+                        <div className="flex items-center justify-between px-4 py-2 bg-black/20 text-xs text-gray-400 font-mono border-b border-white/10">
+                          <span>{match[1]}</span>
+                        </div>
+                        <SyntaxHighlighter
+                          style={theme === 'dark' ? vscDarkPlus : vs}
+                          language={match[1]}
+                          PreTag="div"
+                          customStyle={{ margin: 0, borderRadius: 0, background: theme === 'dark' ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.5)' }}
+                        >
+                          {String(children).replace(/\n$/, '')}
+                        </SyntaxHighlighter>
+                      </div>
+                    );
+                  }
+                  
+                  return (
+                    <code className={`${isUser ? 'bg-black/10 text-white' : (theme === 'dark' ? 'bg-white/10 text-pink-300' : 'bg-black/5 text-pink-600')} px-1.5 py-0.5 rounded-md text-sm font-mono`} {...props}>
                       {children}
                     </code>
                   )
-                }
+                },
+                table: ({node, ...props}) => (
+                  <div className="overflow-x-auto my-4 rounded-xl border border-white/10">
+                    <table className="w-full text-left border-collapse text-sm" {...props} />
+                  </div>
+                ),
+                thead: ({node, ...props}) => <thead className={theme === 'dark' ? 'bg-white/5' : 'bg-black/5'} {...props} />,
+                th: ({node, ...props}) => <th className={`p-3 font-semibold border-b ${theme === 'dark' ? 'border-white/10 text-gray-200' : 'border-black/10 text-gray-800'}`} {...props} />,
+                td: ({node, ...props}) => <td className={`p-3 border-b ${theme === 'dark' ? 'border-white/5 text-gray-300' : 'border-black/5 text-gray-700'}`} {...props} />,
+                tr: ({node, ...props}) => <tr className={theme === 'dark' ? 'hover:bg-white/5 transition-colors' : 'hover:bg-black/5 transition-colors'} {...props} />
               }}
             >
               {content}

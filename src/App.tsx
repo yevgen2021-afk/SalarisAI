@@ -46,8 +46,9 @@ export default function App() {
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
   const [isActionMenuInteracting, setIsActionMenuInteracting] = useState(false);
   const [actionMenuView, setActionMenuView] = useState<'main' | 'model'>('main');
-  const [selectedModel, setSelectedModel] = useState<'gemini-3-flash-preview' | 'gemini-3.1-pro-preview' | 'llama-3.3-70b-versatile' | 'gemma2-9b-it'>('gemini-3-flash-preview');
+  const [selectedModel, setSelectedModel] = useState<'gemini-3-flash-preview' | 'gemini-3.1-pro-preview' | 'llama-3.3-70b-versatile' | 'meta-llama/llama-4-scout-17b-16e-instruct'>('gemini-3-flash-preview');
   const [isThinkingMode, setIsThinkingMode] = useState<boolean>(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
   // Load data from localforage on mount
   useEffect(() => {
@@ -76,7 +77,7 @@ export default function App() {
         if (storedTheme) setTheme(storedTheme);
         if (storedAccentColor) setAccentColor(storedAccentColor);
         if (storedGlow !== null) setIsGlowEnabled(storedGlow);
-        if (['gemini-3-flash-preview', 'gemini-3.1-pro-preview', 'llama-3.3-70b-versatile', 'gemma2-9b-it'].includes(storedModel || '')) {
+        if (['gemini-3-flash-preview', 'gemini-3.1-pro-preview', 'llama-3.3-70b-versatile', 'meta-llama/llama-4-scout-17b-16e-instruct'].includes(storedModel || '')) {
           setSelectedModel(storedModel as any);
         } else {
           setSelectedModel('gemini-3-flash-preview');
@@ -108,6 +109,7 @@ export default function App() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const isUserScrolling = useRef(false);
   const touchStartX = useRef<number | null>(null);
@@ -272,12 +274,14 @@ export default function App() {
   }, []);
 
   const handleSend = useCallback(async () => {
-    if (!input.trim() || isLoading) return;
+    if ((!input.trim() && selectedFiles.length === 0) || isLoading) return;
 
     const userMsg = input.trim();
     const currentThinkingMode = isThinkingMode;
+    const currentFiles = [...selectedFiles];
     
     setInput('');
+    setSelectedFiles([]);
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
@@ -782,6 +786,26 @@ export default function App() {
                           onTap={() => setIsActionMenuInteracting(false)}
                           onTapCancel={() => setIsActionMenuInteracting(false)}
                           onClick={() => {
+                            fileInputRef.current?.click();
+                            setIsActionMenuOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between px-4 py-3 rounded-full text-sm font-medium transition-colors ${
+                            theme === 'dark' 
+                              ? 'hover:bg-white/10 active:bg-white/20 text-white' 
+                              : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <Plus className="w-4 h-4" />
+                            <span>Добавить файл</span>
+                          </div>
+                        </motion.button>
+
+                        <motion.button
+                          onTapStart={() => setIsActionMenuInteracting(true)}
+                          onTap={() => setIsActionMenuInteracting(false)}
+                          onTapCancel={() => setIsActionMenuInteracting(false)}
+                          onClick={() => {
                             setIsThinkingMode(!isThinkingMode);
                             setIsActionMenuOpen(false);
                           }}
@@ -812,8 +836,6 @@ export default function App() {
                           {isThinkingMode && <Check className={`w-4 h-4 ${getAccentClass('text')}`} />}
                         </motion.button>
 
-                        <div className={`h-px w-full my-1 ${theme === 'dark' ? 'bg-white/10' : 'bg-black/5'}`} />
-
                         <motion.button 
                           onTapStart={() => setIsActionMenuInteracting(true)}
                           onTap={() => setIsActionMenuInteracting(false)}
@@ -835,7 +857,7 @@ export default function App() {
                             {selectedModel === 'gemini-3-flash-preview' ? 'SalarisAI classic' : 
                              selectedModel === 'gemini-3.1-pro-preview' ? 'SalarisAI Pro' :
                              selectedModel === 'llama-3.3-70b-versatile' ? 'Llama 3.3 (Groq)' :
-                             'Gemma 2 (Groq)'}
+                             'Llama 4 Scout (Groq)'}
                           </span>
                         </motion.button>
 
@@ -910,15 +932,15 @@ export default function App() {
                           {selectedModel === 'llama-3.3-70b-versatile' && <Check className="w-4 h-4" />}
                         </button>
                         <button 
-                          onClick={() => { setSelectedModel('gemma2-9b-it'); setActionMenuView('main'); }}
+                          onClick={() => { setSelectedModel('meta-llama/llama-4-scout-17b-16e-instruct'); setActionMenuView('main'); }}
                           className={`flex items-center justify-between px-4 py-2.5 rounded-full text-sm font-medium transition-colors ${
                             theme === 'dark' 
                               ? 'hover:bg-white/10 active:bg-white/20 text-white' 
                               : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
                           }`}
                         >
-                          Gemma 2 9B
-                          {selectedModel === 'gemma2-9b-it' && <Check className="w-4 h-4" />}
+                          Llama 4 Scout
+                          {selectedModel === 'meta-llama/llama-4-scout-17b-16e-instruct' && <Check className="w-4 h-4" />}
                         </button>
                       </div>
                     </motion.div>
@@ -992,8 +1014,33 @@ export default function App() {
                 </AnimatePresence>
 
                 <div className="flex items-end gap-2 w-full pt-0.5">
-                  <textarea
-                  ref={textareaRef}
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    className="hidden" 
+                    multiple 
+                    onChange={(e) => {
+                      if (e.target.files) {
+                        setSelectedFiles(prev => [...prev, ...Array.from(e.target.files!)]);
+                      }
+                      e.target.value = ''; // Reset input
+                    }} 
+                  />
+                  <div className="flex flex-col flex-1">
+                    {selectedFiles.length > 0 && (
+                      <div className="flex flex-wrap gap-2 px-4 pb-2 pt-1">
+                        {selectedFiles.map((file, idx) => (
+                          <div key={idx} className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium ${theme === 'dark' ? 'bg-white/10 text-white' : 'bg-black/5 text-gray-900'}`}>
+                            <span className="truncate max-w-[120px]">{file.name}</span>
+                            <button onClick={() => setSelectedFiles(prev => prev.filter((_, i) => i !== idx))} className="hover:opacity-70 transition-opacity">
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <textarea
+                    ref={textareaRef}
                   value={input}
                   onChange={(e) => {
                     setInput(e.target.value);
@@ -1012,13 +1059,14 @@ export default function App() {
                   className={`flex-1 bg-transparent ${theme === 'dark' ? 'text-white' : 'text-gray-900'} placeholder-gray-500 resize-none max-h-32 h-[34px] min-h-[34px] py-[8px] px-4 focus:outline-none text-[16px] font-normal font-sans leading-tight`}
                   rows={1}
                 />
+                </div>
                 <motion.button
                   whileTap={{ scale: 1.1 }}
                   style={{ willChange: "transform" }}
                   onClick={handleSend}
-                  disabled={!input.trim() || isLoading}
+                  disabled={(!input.trim() && selectedFiles.length === 0) || isLoading}
                   className={`w-[34px] h-[34px] flex items-center justify-center rounded-full transition-all duration-300 flex-shrink-0 shadow-sm ${
-                    !input.trim()
+                    (!input.trim() && selectedFiles.length === 0)
                       ? (theme === 'dark' ? 'bg-white/5 text-gray-500' : 'bg-gray-100 text-gray-400')
                       : `${getAccentClass('bg')} ${getAccentClass('hover')} text-white ${getAccentClass('shadow')}`
                   } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
