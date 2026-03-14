@@ -16,6 +16,8 @@ export default function AuthScreen({ theme, accentColor, onLoginSuccess }: AuthS
   const [displayName, setDisplayName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mfaStep, setMfaStep] = useState(false);
+  const [mfaCode, setMfaCode] = useState('');
 
   const getAccentClass = (type: 'bg' | 'text' | 'border' | 'hover') => {
     switch (accentColor) {
@@ -29,6 +31,41 @@ export default function AuthScreen({ theme, accentColor, onLoginSuccess }: AuthS
     }
   };
 
+  const handleMfaVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!supabase) return;
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
+      if (factorsError) throw factorsError;
+
+      const totpFactor = factors.totp[0];
+      if (!totpFactor) throw new Error('Фактор аутентификации не найден');
+
+      const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
+        factorId: totpFactor.id
+      });
+      if (challengeError) throw challengeError;
+
+      const { error: verifyError } = await supabase.auth.mfa.verify({
+        factorId: totpFactor.id,
+        challengeId: challenge.id,
+        code: mfaCode
+      });
+
+      if (verifyError) throw verifyError;
+
+      const { data: { user } } = await supabase.auth.getUser();
+      onLoginSuccess(user);
+    } catch (err: any) {
+      setError(err.message || 'Неверный код подтверждения');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supabase) {
@@ -39,46 +76,40 @@ export default function AuthScreen({ theme, accentColor, onLoginSuccess }: AuthS
     setIsLoading(true);
     setError(null);
 
-    console.log(`Attempting ${isLogin ? 'login' : 'signup'} for ${email}...`);
-
     try {
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Превышено время ожидания ответа от сервера (30 сек)')), 30000)
-      );
-
       if (isLogin) {
-        const { data, error } = await Promise.race([
-          supabase.auth.signInWithPassword({ email, password }),
-          timeoutPromise
-        ]) as any;
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        console.log('Login successful');
+
+        // Проверяем, требуется ли MFA
+        const { data: mfaData, error: mfaError } = await supabase.auth.mfa.listFactors();
+        if (!mfaError && mfaData.all && mfaData.all.length > 0) {
+          setMfaStep(true);
+          setIsLoading(false);
+          return;
+        }
+
         onLoginSuccess(data.user);
       } else {
-        const { error, data } = await Promise.race([
-          supabase.auth.signUp({ 
-            email, 
-            password,
-            options: {
-              data: {
-                display_name: displayName || email.split('@')[0]
-              }
+        const { error, data } = await supabase.auth.signUp({ 
+          email, 
+          password,
+          options: {
+            data: {
+              display_name: displayName || email.split('@')[0]
             }
-          }),
-          timeoutPromise
-        ]) as any;
+          }
+        });
         if (error) throw error;
-        console.log('Signup successful', data);
         
         if (data?.user && !data.session) {
-          setError('Регистрация успешна! Пожалуйста, проверьте почту для подтверждения (если это требуется в настройках Supabase).');
+          setError('Регистрация успешна! Пожалуйста, проверьте почту для подтверждения.');
           setIsLoading(false);
           return;
         }
         onLoginSuccess(data.user);
       }
     } catch (err: any) {
-      console.error('Auth error:', err);
       setError(err.message || 'Произошла ошибка при авторизации');
     } finally {
       setIsLoading(false);
@@ -101,7 +132,7 @@ export default function AuthScreen({ theme, accentColor, onLoginSuccess }: AuthS
             salaris<span className={getAccentClass('text')}>ai</span>
           </h1>
           <p className={`mt-3 text-center ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-            Войдите в приложение, чтобы продолжить
+            {mfaStep ? 'Введите 6-значный код безопасности' : 'Войдите в приложение, чтобы продолжить'}
           </p>
         </div>
 
@@ -110,7 +141,45 @@ export default function AuthScreen({ theme, accentColor, onLoginSuccess }: AuthS
             ? 'bg-[#1a1a1a] border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]' 
             : 'bg-white border-gray-200/50 shadow-[0_8px_30px_rgba(0,0,0,0.04)]'
         }`}>
-          <form onSubmit={handleEmailAuth} className="space-y-4">
+          {mfaStep ? (
+            <form onSubmit={handleMfaVerify} className="space-y-6">
+              <div className="relative">
+                <Lock className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`} />
+                <input
+                  type="text"
+                  value={mfaCode}
+                  onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="000000"
+                  required
+                  autoFocus
+                  className={`w-full h-14 pl-12 pr-4 text-center text-2xl tracking-[0.5em] font-mono rounded-xl outline-none transition-colors ${
+                    theme === 'dark' 
+                      ? 'bg-white/5 border border-white/10 text-white placeholder:text-gray-600 focus:border-white/20 focus:bg-white/10' 
+                      : 'bg-gray-50 border border-gray-200 text-gray-900 placeholder:text-gray-300 focus:border-gray-300 focus:bg-white'
+                  }`}
+                />
+              </div>
+
+              {error && <div className="text-red-500 text-sm text-center">{error}</div>}
+
+              <button
+                type="submit"
+                disabled={isLoading || mfaCode.length !== 6}
+                className={`w-full h-12 rounded-xl font-medium text-white flex items-center justify-center gap-2 transition-all ${getAccentClass('bg')} ${getAccentClass('hover')} ${isLoading || mfaCode.length !== 6 ? 'opacity-70 cursor-not-allowed' : ''}`}
+              >
+                {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Подтвердить'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setMfaStep(false)}
+                className={`w-full text-sm font-medium ${theme === 'dark' ? 'text-gray-500 hover:text-gray-400' : 'text-gray-400 hover:text-gray-500'}`}
+              >
+                Вернуться к входу
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleEmailAuth} className="space-y-4">
             {!isLogin && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
@@ -196,6 +265,7 @@ export default function AuthScreen({ theme, accentColor, onLoginSuccess }: AuthS
               )}
             </button>
           </form>
+          )}
 
           <div className="mt-8 text-center">
             <button

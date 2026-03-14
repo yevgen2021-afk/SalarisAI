@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import localforage from 'localforage';
-import { ArrowUp, Menu, Settings, Moon, Sun, Trash2, Info, X, SquarePen, Plus, Paintbrush, ChevronLeft, Check, Square, Brain, Flag, User, LogOut, Camera } from 'lucide-react';
+import { ArrowUp, Menu, Settings, Moon, Sun, Trash2, Info, X, SquarePen, Plus, Paintbrush, ChevronLeft, Check, Square, Brain, Flag, User, LogOut, Camera, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Chat, Message } from './types';
 import { generateResponseStream, getApiKey } from './services/gemini';
@@ -52,6 +52,7 @@ export default function App() {
   const [isSettingsInteracting, setIsSettingsInteracting] = useState(false);
   const [profile, setProfile] = useState<{ display_name?: string, avatar_url?: string } | null>(null);
   const [tempName, setTempName] = useState('');
+
 
   const fetchProfile = useCallback(async () => {
     if (!supabase || !user) return;
@@ -1716,6 +1717,7 @@ export default function App() {
                   </motion.button>
 
                   <div className={`h-px w-full my-2 ${theme === 'dark' ? 'bg-white/10' : 'bg-black/5'}`} />
+
 
                   <motion.button 
                     whileTap={{ scale: 0.97 }}
