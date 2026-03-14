@@ -5,7 +5,7 @@ window.addEventListener('error', (e) => {
 });
 
 import {createRoot} from 'react-dom/client';
-import Maintenance from './components/Maintenance.tsx';
+import App from './App.tsx';
 import './index.css';
 
 class ErrorBoundary extends Component<{children: ReactNode}, {hasError: boolean, error: Error | null}> {
@@ -39,8 +39,9 @@ class ErrorBoundary extends Component<{children: ReactNode}, {hasError: boolean,
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
-      <Maintenance />
+      <App />
     </ErrorBoundary>
   </StrictMode>,
 );
+
 

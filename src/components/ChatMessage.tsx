@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { ThumbsUp, ThumbsDown, Copy, Check, RefreshCw } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, Copy, Check, RefreshCw, Flag } from 'lucide-react';
 
 interface ChatMessageProps {
   id: string;
@@ -15,9 +15,12 @@ interface ChatMessageProps {
   accentColor: string;
   isGlowEnabled: boolean;
   onRegenerate?: (id: string) => void;
+  onReport?: (id: string) => void;
+  onLike?: (id: string) => void;
+  onDislike?: (id: string) => void;
 }
 
-const ChatMessage = memo(({ id, role, content, theme, isTyping, accentColor, isGlowEnabled, onRegenerate }: ChatMessageProps) => {
+const ChatMessage = memo(({ id, role, content, theme, isTyping, accentColor, isGlowEnabled, onRegenerate, onReport, onLike, onDislike }: ChatMessageProps) => {
   const isUser = role === 'user';
   const [showFinishGlow, setShowFinishGlow] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
@@ -135,12 +138,12 @@ const ChatMessage = memo(({ id, role, content, theme, isTyping, accentColor, isG
                         />
                       );
                     },
-                p: ({node, ...props}) => <p className={`mb-3 last:mb-0 leading-relaxed text-[16px] font-normal ${isUser ? 'text-white' : (theme === 'dark' ? 'text-gray-100' : 'text-gray-800')}`} {...props} />,
+                p: ({node, ...props}) => <p className={`mb-3 last:mb-0 leading-relaxed text-[16px] font-medium ${isUser ? 'text-white' : (theme === 'dark' ? 'text-gray-100' : 'text-gray-800')}`} {...props} />,
                 a: ({node, ...props}) => <a className={`${isUser ? 'text-white underline' : 'text-pink-400 hover:text-pink-300 underline'} underline-offset-4 transition-colors text-[16px]`} {...props} />,
-                strong: ({node, ...props}) => <strong className={`font-medium ${isUser ? 'text-white' : (theme === 'dark' ? 'text-white' : 'text-gray-900')}`} {...props} />,
+                strong: ({node, ...props}) => <strong className={`font-bold ${isUser ? 'text-white' : (theme === 'dark' ? 'text-white' : 'text-gray-900')}`} {...props} />,
                 ul: ({node, ...props}) => <ul className="list-disc pl-6 mb-3 space-y-2 text-[16px]" {...props} />,
                 ol: ({node, ...props}) => <ol className="list-decimal pl-6 mb-3 space-y-2 text-[16px]" {...props} />,
-                li: ({node, ...props}) => <li className={`leading-relaxed text-[16px] font-normal ${isUser ? 'text-white' : (theme === 'dark' ? 'text-gray-100' : 'text-gray-800')}`} {...props} />,
+                li: ({node, ...props}) => <li className={`leading-relaxed text-[16px] font-medium ${isUser ? 'text-white' : (theme === 'dark' ? 'text-gray-100' : 'text-gray-800')}`} {...props} />,
                 blockquote: ({node, ...props}) => <blockquote className={`border-l-4 pl-4 italic my-3 ${isUser ? 'border-white/50 text-white/90' : (theme === 'dark' ? 'border-gray-500 text-gray-300' : 'border-gray-400 text-gray-600')}`} {...props} />,
                 code: ({node, className, children, ...props}) => {
                   const match = /language-(\w+)/.exec(className || '')
@@ -192,13 +195,15 @@ const ChatMessage = memo(({ id, role, content, theme, isTyping, accentColor, isG
           <div className={`absolute top-full left-2 mt-2 flex items-center gap-1 transition-opacity duration-500 z-10 ${showActions ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
             <div className="flex items-center gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200">
               <button 
-                className={`p-2 rounded-full transition-colors ${theme === 'dark' ? 'hover:bg-white/10 text-gray-400 hover:text-gray-200' : 'hover:bg-black/5 text-gray-500 hover:text-gray-700'}`}
+                onClick={() => onLike?.(id)}
+                className={`p-2 rounded-full transition-colors ${theme === 'dark' ? 'hover:bg-white/10 text-gray-400 hover:text-emerald-400' : 'hover:bg-black/5 text-gray-500 hover:text-emerald-600'}`}
                 title="Лайк"
               >
                 <ThumbsUp className="w-4 h-4" />
               </button>
               <button 
-                className={`p-2 rounded-full transition-colors ${theme === 'dark' ? 'hover:bg-white/10 text-gray-400 hover:text-gray-200' : 'hover:bg-black/5 text-gray-500 hover:text-gray-700'}`}
+                onClick={() => onDislike?.(id)}
+                className={`p-2 rounded-full transition-colors ${theme === 'dark' ? 'hover:bg-white/10 text-gray-400 hover:text-orange-400' : 'hover:bg-black/5 text-gray-500 hover:text-orange-600'}`}
                 title="Дизлайк"
               >
                 <ThumbsDown className="w-4 h-4" />
@@ -217,6 +222,15 @@ const ChatMessage = memo(({ id, role, content, theme, isTyping, accentColor, isG
                   title="Переделать ответ"
                 >
                   <RefreshCw className="w-4 h-4" />
+                </button>
+              )}
+              {onReport && (
+                <button 
+                  onClick={() => onReport(id)}
+                  className={`p-2 rounded-full transition-colors ${theme === 'dark' ? 'hover:bg-white/10 text-gray-400 hover:text-red-400' : 'hover:bg-black/5 text-gray-500 hover:text-red-500'}`}
+                  title="Пожаловаться"
+                >
+                  <Flag className="w-4 h-4" />
                 </button>
               )}
             </div>

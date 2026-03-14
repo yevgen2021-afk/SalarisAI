@@ -11,6 +11,58 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.json" />
     <title>SalarisAI</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@700&display=swap');
+      
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: #ffffff;
+      }
+      
+      #splash-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background-color: #ffffff;
+        z-index: 9999;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        body, #splash-screen {
+          background-color: #0a0a0a;
+        }
+      }
+
+      .splash-logo {
+        font-family: 'Outfit', sans-serif;
+        font-size: 2.5rem;
+        font-weight: 700;
+        letter-spacing: -0.05em;
+        color: #111827;
+        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        .splash-logo {
+          color: #ffffff;
+        }
+      }
+
+      .splash-logo span {
+        color: #06b6d4; /* Laguna (cyan-500) */
+      }
+
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+      }
+    </style>
   </head>
   <body>
     <script>
@@ -18,7 +70,11 @@
         document.body.innerHTML = '<div style="color:red;padding:20px;background:black;height:100vh;"><h1>Global Error</h1><pre>' + (e.error ? e.error.stack : e.message) + '</pre></div>';
       });
     </script>
-    <div id="root"></div>
+    <div id="root">
+      <div id="splash-screen">
+        <div class="splash-logo">salaris<span>ai</span></div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
