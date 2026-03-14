@@ -15,7 +15,7 @@ export default function AuthScreen({ theme, accentColor, onLoginSuccess }: AuthS
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(supabase ? null : 'Supabase не настроен. Пожалуйста, добавьте VITE_SUPABASE_URL и VITE_SUPABASE_ANON_KEY в настройки (Settings -> Environment Variables).');
+  const [error, setError] = useState<string | null>(null);
 
   const getAccentClass = (type: 'bg' | 'text' | 'border' | 'hover') => {
     switch (accentColor) {

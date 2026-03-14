@@ -197,8 +197,8 @@ export default function App() {
   const stopGenerationRef = useRef<boolean>(false);
 
   useEffect(() => {
-    console.log('Auth State:', { isLoaded, isAuthReady, user: user?.email, hasSupabase: !!supabase });
-  }, [isLoaded, isAuthReady, user]);
+    console.log('Auth State:', { isAuthReady, user: user?.email, hasSupabase: !!supabase });
+  }, [isAuthReady, user]);
 
   const [reportContext, setReportContext] = useState<{ messageId?: string, text?: string, type: 'report' | 'like' | 'dislike' } | null>(null);
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
@@ -841,7 +841,7 @@ export default function App() {
     );
   }
 
-  if (!user) {
+  if (!user && supabase) {
     return <AuthScreen theme={theme} accentColor={accentColor} onLoginSuccess={(u) => setUser(u)} />;
   }
 
