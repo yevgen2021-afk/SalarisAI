@@ -16,6 +16,7 @@ export default function AuthScreen({ theme, accentColor, onLoginSuccess }: AuthS
   const [displayName, setDisplayName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [mfaStep, setMfaStep] = useState(false);
   const [mfaCode, setMfaCode] = useState('');
 
@@ -31,11 +32,22 @@ export default function AuthScreen({ theme, accentColor, onLoginSuccess }: AuthS
     }
   };
 
+  const translateError = (message: string) => {
+    if (message.includes('Invalid login credentials')) return 'Неверный email или пароль';
+    if (message.includes('User already registered')) return 'Пользователь с таким email уже зарегистрирован';
+    if (message.includes('Password should be at least 6 characters')) return 'Пароль должен содержать минимум 6 символов';
+    if (message.includes('Email not confirmed')) return 'Email не подтвержден. Проверьте почту.';
+    if (message.includes('Too many requests')) return 'Слишком много попыток. Попробуйте позже.';
+    if (message.includes('Database error saving new user')) return 'Ошибка базы данных при создании профиля. Попробуйте другой Email или обратитесь в поддержку.';
+    return message;
+  };
+
   const handleMfaVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supabase) return;
     setIsLoading(true);
     setError(null);
+    setSuccess(null);
 
     try {
       const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
@@ -60,7 +72,7 @@ export default function AuthScreen({ theme, accentColor, onLoginSuccess }: AuthS
       const { data: { user } } = await supabase.auth.getUser();
       onLoginSuccess(user);
     } catch (err: any) {
-      setError(err.message || 'Неверный код подтверждения');
+      setError(translateError(err.message || 'Неверный код подтверждения'));
     } finally {
       setIsLoading(false);
     }
@@ -69,12 +81,13 @@ export default function AuthScreen({ theme, accentColor, onLoginSuccess }: AuthS
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supabase) {
-      setError('Supabase не настроен. Добавьте ключи в .env');
+      setError('Ошибка на стороне сервера. Повторите попытку позже.');
       return;
     }
 
     setIsLoading(true);
     setError(null);
+    setSuccess(null);
 
     try {
       if (isLogin) {
@@ -103,14 +116,14 @@ export default function AuthScreen({ theme, accentColor, onLoginSuccess }: AuthS
         if (error) throw error;
         
         if (data?.user && !data.session) {
-          setError('Регистрация успешна! Пожалуйста, проверьте почту для подтверждения.');
+          setSuccess('Ещё чуть-чуть. Проверьте почту и подтвердите регистрацию.');
           setIsLoading(false);
           return;
         }
         onLoginSuccess(data.user);
       }
     } catch (err: any) {
-      setError(err.message || 'Произошла ошибка при авторизации');
+      setError(translateError(err.message || 'Произошла ошибка при авторизации'));
     } finally {
       setIsLoading(false);
     }
@@ -132,7 +145,7 @@ export default function AuthScreen({ theme, accentColor, onLoginSuccess }: AuthS
             salaris<span className={getAccentClass('text')}>ai</span>
           </h1>
           <p className={`mt-3 text-center ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-            {mfaStep ? 'Введите 6-значный код безопасности' : 'Войдите в приложение, чтобы продолжить'}
+            {mfaStep ? 'Введите 6-значный код безопасности' : 'Войдите в Salaris Account, чтобы продолжить'}
           </p>
         </div>
 
@@ -243,9 +256,19 @@ export default function AuthScreen({ theme, accentColor, onLoginSuccess }: AuthS
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="text-red-500 text-sm text-center"
+                  className="text-red-500 text-sm text-center font-medium"
                 >
                   {error}
+                </motion.div>
+              )}
+              {success && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="text-emerald-500 text-sm text-center font-medium"
+                >
+                  {success}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -259,7 +282,7 @@ export default function AuthScreen({ theme, accentColor, onLoginSuccess }: AuthS
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
                 <>
-                  {isLogin ? 'Войти с SalarisAI' : 'Зарегистрироваться'}
+                  {isLogin ? 'Войти с Salaris Account' : 'Зарегистрироваться'}
                   <ArrowRight className="w-5 h-5" />
                 </>
               )}

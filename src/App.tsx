@@ -1,14 +1,14 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import localforage from 'localforage';
-import { ArrowUp, Menu, Settings, Moon, Sun, Trash2, Info, X, SquarePen, Plus, Paintbrush, ChevronLeft, Check, Square, Brain, Flag, User, LogOut, Camera, Loader2 } from 'lucide-react';
+import { ArrowUp, Menu, Settings, Moon, Sun, Trash2, Info, X, SquarePen, Plus, Paintbrush, ChevronLeft, Check, Square, Brain, Flag, User, LogOut, Camera, Loader2, Shield } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Chat, Message } from './types';
-import { generateResponseStream, getApiKey } from './services/gemini';
 import { generateGroqResponseStream } from './services/groq';
 import ChatMessage from './components/ChatMessage';
 import Dashboard from './components/Dashboard';
 import Sidebar from './components/Sidebar';
 import AuthScreen from './components/AuthScreen';
+import BannedScreen from './components/BannedScreen';
 import ReportModal from './components/ReportModal';
 import { supabase } from './lib/supabase';
 
@@ -44,6 +44,7 @@ export default function App() {
 
   // Auth & Report State
   const [user, setUser] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<{ is_banned: boolean } | null>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
@@ -84,7 +85,7 @@ export default function App() {
   const handleUpdateProfile = async () => {
     if (!supabase || !user || !tempName) return;
     if (tempName === profile?.display_name) {
-      setSettingsView('account');
+      setSettingsView('main');
       return;
     }
 
@@ -97,7 +98,7 @@ export default function App() {
       alert('Ошибка при обновлении профиля: ' + error.message);
     } else {
       setProfile(prev => prev ? { ...prev, display_name: tempName } : { display_name: tempName });
-      setSettingsView('account');
+      setSettingsView('main');
     }
   };
 
@@ -190,7 +191,7 @@ export default function App() {
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
   const [isActionMenuInteracting, setIsActionMenuInteracting] = useState(false);
   const [actionMenuView, setActionMenuView] = useState<'main' | 'model'>('main');
-  const [selectedModel, setSelectedModel] = useState<'gemini-3-flash-preview' | 'gemini-3.1-pro-preview' | 'llama-3.3-70b-versatile' | 'meta-llama/llama-4-scout-17b-16e-instruct'>('gemini-3-flash-preview');
+  const [selectedModel, setSelectedModel] = useState<'llama-3.3-70b-versatile' | 'meta-llama/llama-4-scout-17b-16e-instruct'>('meta-llama/llama-4-scout-17b-16e-instruct');
   const [isThinkingMode, setIsThinkingMode] = useState<boolean>(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -219,10 +220,52 @@ export default function App() {
         setIsAuthReady(true);
       }, 5000);
 
+      let profileSubscription: any = null;
+
+      const setupProfileSubscription = async (userId: string) => {
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('is_banned')
+            .eq('id', userId)
+            .single();
+          if (!error && data) {
+            setUserProfile(data);
+          }
+        } catch (err) {
+          console.error('Error fetching profile:', err);
+        }
+
+        if (profileSubscription) {
+          supabase.removeChannel(profileSubscription);
+        }
+        
+        profileSubscription = supabase
+          .channel(`public:profiles:${userId}`)
+          .on(
+            'postgres_changes',
+            {
+              event: 'UPDATE',
+              schema: 'public',
+              table: 'profiles',
+              filter: `id=eq.${userId}`
+            },
+            (payload) => {
+              console.log('Profile updated via realtime:', payload);
+              setUserProfile(payload.new as { is_banned: boolean });
+            }
+          )
+          .subscribe();
+      };
+
       supabase.auth.getSession().then(({ data: { session } }) => {
         clearTimeout(authTimeout);
         setUser(session?.user ?? null);
-        setIsAuthReady(true);
+        if (session?.user) {
+          setupProfileSubscription(session.user.id).finally(() => setIsAuthReady(true));
+        } else {
+          setIsAuthReady(true);
+        }
       }).catch(err => {
         clearTimeout(authTimeout);
         console.error('Auth session error:', err);
@@ -231,9 +274,23 @@ export default function App() {
 
       const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
         setUser(session?.user ?? null);
+        if (session?.user) {
+          setupProfileSubscription(session.user.id);
+        } else {
+          setUserProfile(null);
+          if (profileSubscription) {
+            supabase.removeChannel(profileSubscription);
+            profileSubscription = null;
+          }
+        }
       });
 
-      return () => subscription.unsubscribe();
+      return () => {
+        subscription.unsubscribe();
+        if (profileSubscription) {
+          supabase.removeChannel(profileSubscription);
+        }
+      };
     } else {
       setIsAuthReady(true); // If no supabase configured, just proceed
     }
@@ -249,13 +306,23 @@ export default function App() {
         const storedGlow = await localforage.getItem<boolean>('salaris_glow');
         const storedModel = await localforage.getItem<string>('salaris_model');
 
-        if (storedChats) {
-          setChats(storedChats);
-          if (storedActiveChatId) {
-            setActiveChatId(storedActiveChatId);
-          } else if (storedChats.length > 0) {
-            setActiveChatId(storedChats[0].id);
+        if (storedChats && storedChats.length > 0) {
+          let newChats = storedChats;
+          let newActiveId = storedActiveChatId;
+          
+          const emptyChat = storedChats.find(c => c.messages.length === 0);
+          
+          if (!emptyChat) {
+            const newChat = createNewChat();
+            newChats = [newChat, ...storedChats];
+            newActiveId = newChat.id;
+          } else {
+            newActiveId = emptyChat.id;
+            newChats = [emptyChat, ...storedChats.filter(c => c.id !== emptyChat.id)];
           }
+          
+          setChats(newChats);
+          setActiveChatId(newActiveId!);
         } else {
           // Default chat is already set in useState, just ensure activeChatId matches
           const newChat = chats[0];
@@ -265,11 +332,11 @@ export default function App() {
         if (storedTheme) setTheme(storedTheme);
         if (storedAccentColor) setAccentColor(storedAccentColor);
         if (storedGlow !== null) setIsGlowEnabled(storedGlow);
-        if (['gemini-3-flash-preview', 'gemini-3.1-pro-preview', 'llama-3.3-70b-versatile', 'meta-llama/llama-4-scout-17b-16e-instruct'].includes(storedModel || '')) {
+        if (['llama-3.3-70b-versatile', 'meta-llama/llama-4-scout-17b-16e-instruct'].includes(storedModel || '')) {
           setSelectedModel(storedModel as any);
         } else {
-          setSelectedModel('gemini-3-flash-preview');
-          localforage.setItem('salaris_model', 'gemini-3-flash-preview');
+          setSelectedModel('meta-llama/llama-4-scout-17b-16e-instruct');
+          localforage.setItem('salaris_model', 'meta-llama/llama-4-scout-17b-16e-instruct');
         }
       } catch (error) {
         // Silently handle localforage load errors
@@ -521,15 +588,8 @@ export default function App() {
 
     try {
       const chatHistory = activeChat ? activeChat.messages : [];
-      const isGroq = selectedModel.includes('llama') || selectedModel.includes('gemma');
       
-      // Handle Gemini or Groq
-      const stream = isGroq 
-        ? generateGroqResponseStream(userMsg, selectedModel, chatHistory)
-        : generateResponseStream(userMsg, {
-            model: selectedModel as any,
-            thinkingMode: currentThinkingMode
-          }, chatHistory);
+      const stream = generateGroqResponseStream(userMsg, selectedModel, chatHistory);
 
       let isFirstChunk = true;
       let currentTyped = '';
@@ -669,14 +729,8 @@ export default function App() {
 
     try {
       const chatHistory = activeChat ? activeChat.messages.slice(0, lastUserMsgIndex) : [];
-      const isGroq = selectedModel.includes('llama') || selectedModel.includes('gemma');
       
-      const stream = isGroq 
-        ? generateGroqResponseStream(userMsgContent, selectedModel, chatHistory)
-        : generateResponseStream(userMsgContent, {
-            model: selectedModel as any,
-            thinkingMode: isThinkingMode
-          }, chatHistory);
+      const stream = generateGroqResponseStream(userMsgContent, selectedModel, chatHistory);
 
       let isFirstChunk = true;
       let currentTyped = '';
@@ -844,6 +898,10 @@ export default function App() {
 
   if (!user) {
     return <AuthScreen theme={theme} accentColor={accentColor} onLoginSuccess={(u) => setUser(u)} />;
+  }
+
+  if (userProfile?.is_banned) {
+    return <BannedScreen theme={theme} onLogout={() => { setUser(null); setUserProfile(null); }} />;
   }
 
   return (
@@ -1065,13 +1123,15 @@ export default function App() {
                   actionMenuView === 'main' ? (
                     <motion.div
                       key="main"
-                      initial={{ scale: 0 }}
+                      initial={{ scale: 0, opacity: 0, z: 0 }}
                       animate={{ 
                         scale: isActionMenuInteracting ? 0.97 : 1, 
+                        opacity: 1,
+                        z: 0,
                         transition: { type: "spring", damping: 25, stiffness: 300 } 
                       }}
-                      exit={{ scale: 0, transition: { duration: 0.15, ease: "easeOut" } }}
-                      style={{ transformOrigin: '24px calc(100% - 24px)', willChange: "transform" }}
+                      exit={{ scale: 0, opacity: 0, z: 0, transition: { duration: 0.15, ease: "easeOut" } }}
+                      style={{ transformOrigin: '24px calc(100% - 24px)', willChange: "transform, opacity" }}
                       className={`absolute bottom-0 left-0 z-[200] w-64 rounded-[2rem] overflow-hidden p-2 hyper-glass hyper-glass-shadow`}
                     >
                       <div className="flex flex-col">
@@ -1146,10 +1206,7 @@ export default function App() {
                             Модель
                           </div>
                           <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                            {selectedModel === 'gemini-3-flash-preview' ? 'Gemini 3 Flash' : 
-                             selectedModel === 'gemini-3.1-pro-preview' ? 'Gemini 3.1 Pro' :
-                             selectedModel === 'llama-3.3-70b-versatile' ? 'Osmium X' :
-                             'Osmium'}
+                            {selectedModel === 'llama-3.3-70b-versatile' ? 'Osmium X' : 'Osmium'}
                           </span>
                         </motion.button>
 
@@ -1158,13 +1215,15 @@ export default function App() {
                   ) : (
                     <motion.div 
                       key="model"
-                      initial={{ scale: 0 }}
+                      initial={{ scale: 0, opacity: 0, z: 0 }}
                       animate={{ 
                         scale: isActionMenuInteracting ? 0.97 : 1, 
+                        opacity: 1,
+                        z: 0,
                         transition: { type: "spring", damping: 25, stiffness: 300 } 
                       }}
-                      exit={{ scale: 0, transition: { duration: 0.15, ease: "easeOut" } }}
-                      style={{ transformOrigin: '24px calc(100% - 24px)', willChange: "transform" }}
+                      exit={{ scale: 0, opacity: 0, z: 0, transition: { duration: 0.15, ease: "easeOut" } }}
+                      style={{ transformOrigin: '24px calc(100% - 24px)', willChange: "transform, opacity" }}
                       className={`absolute bottom-0 left-0 z-[200] w-64 rounded-[2rem] overflow-hidden shadow-[0_16px_40px_rgba(0,0,0,0.2)] border p-2 backdrop-blur-xl ${
                         theme === 'dark' 
                           ? 'bg-white/10 border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]' 
@@ -1220,38 +1279,6 @@ export default function App() {
                             {selectedModel === 'llama-3.3-70b-versatile' && <Check className="w-4 h-4" />}
                           </div>
                           <span className={`text-[11px] ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>Подробный ответ</span>
-                        </motion.button>
-
-                        <div className={`px-4 py-1.5 mt-1 text-[10px] font-bold uppercase tracking-wider ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>
-                          Google Gemini
-                        </div>
-                        <motion.button 
-                          onTapStart={() => setIsActionMenuInteracting(true)}
-                          onTap={() => setIsActionMenuInteracting(false)}
-                          onTapCancel={() => setIsActionMenuInteracting(false)}
-                          onClick={() => { setSelectedModel('gemini-3-flash-preview'); setActionMenuView('main'); }}
-                          className={`flex items-center justify-between px-4 py-2.5 rounded-full text-sm font-medium transition-colors ${
-                            theme === 'dark' 
-                              ? 'hover:bg-white/10 active:bg-white/20 text-white' 
-                              : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
-                          }`}
-                        >
-                          Gemini 3 Flash
-                          {selectedModel === 'gemini-3-flash-preview' && <Check className="w-4 h-4" />}
-                        </motion.button>
-                        <motion.button 
-                          onTapStart={() => setIsActionMenuInteracting(true)}
-                          onTap={() => setIsActionMenuInteracting(false)}
-                          onTapCancel={() => setIsActionMenuInteracting(false)}
-                          onClick={() => { setSelectedModel('gemini-3.1-pro-preview'); setActionMenuView('main'); }}
-                          className={`flex items-center justify-between px-4 py-2.5 rounded-full text-sm font-medium transition-colors ${
-                            theme === 'dark' 
-                              ? 'hover:bg-white/10 active:bg-white/20 text-white' 
-                              : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
-                          }`}
-                        >
-                          Gemini 3.1 Pro
-                          {selectedModel === 'gemini-3.1-pro-preview' && <Check className="w-4 h-4" />}
                         </motion.button>
                       </div>
                     </motion.div>
@@ -1440,7 +1467,7 @@ export default function App() {
                     className={`appearance-none border border-transparent shadow-none w-full py-3 px-5 text-base transition-all duration-300 focus:outline-none focus:ring-0 rounded-full ${
                       theme === 'dark' 
                         ? 'bg-white/10 text-white placeholder-white/40 focus:bg-white/20' 
-                        : 'bg-gray-200 text-gray-900 placeholder-gray-500 focus:bg-gray-300'
+                        : 'bg-gray-300 text-gray-900 placeholder-gray-500 focus:bg-gray-400'
                     }`}
                   />
                 </div>
@@ -1544,46 +1571,63 @@ export default function App() {
           settingsView === 'main' ? (
             <motion.div 
               key="main"
-              initial={{ scale: 0 }}
+              initial={{ scale: 0, opacity: 0, z: 0 }}
               animate={{ 
                 scale: isSettingsInteracting ? 0.97 : 1, 
+                opacity: 1,
+                z: 0,
                 transition: { type: "spring", damping: 25, stiffness: 300 } 
               }}
-              exit={{ scale: 0, transition: { duration: 0.15, ease: "easeOut" } }}
-              style={{ transformOrigin: 'calc(100% - 44px) 22px', willChange: "transform" }}
-              className={`fixed top-4 right-4 md:right-8 z-[201] w-64 rounded-[2rem] overflow-hidden p-2 hyper-glass hyper-glass-shadow`}
+              exit={{ scale: 0, opacity: 0, z: 0, transition: { duration: 0.15, ease: "easeOut" } }}
+              style={{ 
+                transformOrigin: 'calc(100% - 44px) 22px', 
+                willChange: "transform, opacity"
+              }}
+              className={`fixed top-4 right-4 md:right-8 z-[201] w-72 rounded-[2rem] overflow-hidden p-4 hyper-glass hyper-glass-shadow`}
             >
               <div className="flex flex-col">
-                <motion.button 
-                  onTapStart={() => setIsSettingsInteracting(true)}
-                  onTap={() => setIsSettingsInteracting(false)}
-                  onTapCancel={() => setIsSettingsInteracting(false)}
-                  onClick={() => { toggleTheme(); setIsActionMenuOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-full text-sm font-medium transition-colors ${
-                    theme === 'dark' 
-                      ? 'hover:bg-white/10 active:bg-white/20 text-white' 
-                      : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
-                  }`}
-                >
-                  {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-                  {theme === 'dark' ? 'Светлая тема' : 'Темная тема'}
-                </motion.button>
+                {user && (
+                  <div className="flex items-center gap-4 mb-4 px-2">
+                    <div className={`w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold text-white shadow-lg flex-shrink-0 ${getAvatarColor(profile?.display_name || user?.email || 'U')}`}>
+                      {profile?.avatar_url ? (
+                        <img src={profile.avatar_url} alt="Avatar" decoding="async" className="w-full h-full rounded-full object-cover" />
+                      ) : (
+                        (profile?.display_name || user?.email || 'U')[0].toUpperCase()
+                      )}
+                    </div>
+                    <div className="flex flex-col overflow-hidden">
+                      <span className={`text-base font-bold truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                        {profile?.display_name || 'Пользователь'}
+                      </span>
+                      <span className={`text-xs truncate ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>
+                        {user?.email}
+                      </span>
+                    </div>
+                  </div>
+                )}
 
-                <motion.button 
-                  whileTap={{ scale: 0.97 }}
-                  onTapStart={() => setIsSettingsInteracting(true)}
-                  onTap={() => setIsSettingsInteracting(false)}
-                  onTapCancel={() => setIsSettingsInteracting(false)}
-                  onClick={() => setSettingsView('account')}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-full text-sm font-medium transition-colors ${
-                    theme === 'dark' 
-                      ? 'hover:bg-white/10 active:bg-white/20 text-white' 
-                      : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
-                  }`}
-                >
-                  <User className="w-4 h-4" />
-                  Аккаунт
-                </motion.button>
+                {user && (
+                  <motion.button 
+                    whileTap={{ scale: 0.97 }}
+                    onTapStart={() => setIsSettingsInteracting(true)}
+                    onTap={() => setIsSettingsInteracting(false)}
+                    onTapCancel={() => setIsSettingsInteracting(false)}
+                    onClick={() => {
+                      setTempName(profile?.display_name || '');
+                      setSettingsView('edit-profile');
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-full text-sm font-medium transition-colors ${
+                      theme === 'dark' 
+                        ? 'hover:bg-white/10 active:bg-white/20 text-white' 
+                        : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
+                    }`}
+                  >
+                    <User className="w-4 h-4" />
+                    Редактировать профиль
+                  </motion.button>
+                )}
+
+                <div className={`h-px w-full my-2 ${theme === 'dark' ? 'bg-white/10' : 'bg-black/5'}`} />
 
                 <motion.button 
                   whileTap={{ scale: 0.97 }}
@@ -1600,21 +1644,9 @@ export default function App() {
                   <Paintbrush className="w-4 h-4" />
                   Кастомизация
                 </motion.button>
-
-                <motion.button 
-                  onTapStart={() => setIsSettingsInteracting(true)}
-                  onTap={() => setIsSettingsInteracting(false)}
-                  onTapCancel={() => setIsSettingsInteracting(false)}
-                  onClick={deleteAllChats}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-full text-sm font-medium transition-colors text-red-500 hover:bg-red-500/10 active:bg-red-500/20 mt-1`}
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Удалить все чаты
-                </motion.button>
-                
-                <div className={`h-px w-full my-2 ${theme === 'dark' ? 'bg-white/10' : 'bg-black/5'}`} />
                 
                 <motion.button 
+                  whileTap={{ scale: 0.97 }}
                   onTapStart={() => setIsSettingsInteracting(true)}
                   onTap={() => setIsSettingsInteracting(false)}
                   onTapCancel={() => setIsSettingsInteracting(false)}
@@ -1630,23 +1662,30 @@ export default function App() {
                 </motion.button>
               </div>
             </motion.div>
-          ) : settingsView === 'account' ? (
+          ) : settingsView === 'edit-profile' ? (
             <motion.div 
-              key="account"
-              initial={{ scale: 0, opacity: 0 }}
+              key="edit-profile"
+              initial={{ scale: 0, opacity: 0, z: 0 }}
               animate={{ 
                 scale: isSettingsInteracting ? 0.97 : 1, 
                 opacity: 1,
+                z: 0,
                 transition: { type: "spring", damping: 25, stiffness: 300 } 
               }}
-              exit={{ scale: 0, opacity: 0, transition: { duration: 0.15, ease: "easeOut" } }}
-              style={{ transformOrigin: 'calc(100% - 44px) 22px', willChange: "transform" }}
+              exit={{ scale: 0, opacity: 0, z: 0, transition: { duration: 0.15, ease: "easeOut" } }}
+              style={{ 
+                transformOrigin: 'calc(100% - 44px) 22px', 
+                willChange: "transform, opacity"
+              }}
               className={`fixed top-4 right-4 md:right-8 z-[201] w-72 rounded-[2rem] overflow-hidden p-4 hyper-glass hyper-glass-shadow`}
             >
               <div className="flex flex-col">
-                <div className="flex items-center gap-2 mb-4">
+                <div className="flex items-center gap-2 mb-4 px-2">
                   <motion.button 
                     whileTap={{ scale: 0.97 }}
+                    onTapStart={() => setIsSettingsInteracting(true)}
+                    onTap={() => setIsSettingsInteracting(false)}
+                    onTapCancel={() => setIsSettingsInteracting(false)}
                     onClick={() => setSettingsView('main')}
                     className={`p-2 rounded-full transition-colors ${
                       theme === 'dark' ? 'hover:bg-white/10 text-gray-400' : 'hover:bg-black/5 text-gray-500'
@@ -1655,111 +1694,45 @@ export default function App() {
                     <ChevronLeft className="w-5 h-5" />
                   </motion.button>
                   <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                    Аккаунт
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-4 mb-6 px-2">
-                  <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold text-white shadow-lg ${getAvatarColor(profile?.display_name || user?.email || 'U')}`}>
-                    {profile?.avatar_url ? (
-                      <img src={profile.avatar_url} alt="Avatar" className="w-full h-full rounded-full object-cover" />
-                    ) : (
-                      (profile?.display_name || user?.email || 'U')[0].toUpperCase()
-                    )}
-                  </div>
-                  <div className="flex flex-col overflow-hidden">
-                    <span className={`text-lg font-bold truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                      {profile?.display_name || 'Пользователь'}
-                    </span>
-                    <span className={`text-xs truncate ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>
-                      {user?.email}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <div className="relative">
-                    <input 
-                      type="file" 
-                      id="avatar-upload" 
-                      className="hidden" 
-                      accept="image/*"
-                      onChange={handleAvatarUpload}
-                    />
-                    <motion.button 
-                      whileTap={{ scale: 0.97 }}
-                      onClick={() => document.getElementById('avatar-upload')?.click()}
-                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-full text-sm font-medium transition-colors ${
-                        theme === 'dark' 
-                          ? 'hover:bg-white/10 active:bg-white/20 text-white' 
-                          : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
-                      }`}
-                    >
-                      <Camera className="w-4 h-4" />
-                      Поменять фото профиля
-                    </motion.button>
-                  </div>
-
-                  <motion.button 
-                    whileTap={{ scale: 0.97 }}
-                    onClick={() => {
-                      setTempName(profile?.display_name || '');
-                      setSettingsView('edit-profile');
-                    }}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-full text-sm font-medium transition-colors ${
-                      theme === 'dark' 
-                        ? 'hover:bg-white/10 active:bg-white/20 text-white' 
-                        : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
-                    }`}
-                  >
-                    <Settings className="w-4 h-4" />
-                    Редактировать профиль
-                  </motion.button>
-
-                  <div className={`h-px w-full my-2 ${theme === 'dark' ? 'bg-white/10' : 'bg-black/5'}`} />
-
-
-                  <motion.button 
-                    whileTap={{ scale: 0.97 }}
-                    onClick={handleLogout}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-full text-sm font-medium transition-colors text-red-500 hover:bg-red-500/10 active:bg-red-500/20"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    Выйти из аккаунта
-                  </motion.button>
-                </div>
-              </div>
-            </motion.div>
-          ) : settingsView === 'edit-profile' ? (
-            <motion.div 
-              key="edit-profile"
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ 
-                scale: isSettingsInteracting ? 0.97 : 1, 
-                opacity: 1,
-                transition: { type: "spring", damping: 25, stiffness: 300 } 
-              }}
-              exit={{ scale: 0, opacity: 0, transition: { duration: 0.15, ease: "easeOut" } }}
-              style={{ transformOrigin: 'calc(100% - 44px) 22px', willChange: "transform" }}
-              className={`fixed top-4 right-4 md:right-8 z-[201] w-72 rounded-[2rem] overflow-hidden p-4 hyper-glass hyper-glass-shadow`}
-            >
-              <div className="flex flex-col">
-                <div className="flex items-center gap-2 mb-4">
-                  <motion.button 
-                    whileTap={{ scale: 0.97 }}
-                    onClick={() => setSettingsView('account')}
-                    className={`p-2 rounded-full transition-colors ${
-                      theme === 'dark' ? 'hover:bg-white/10 text-gray-400' : 'hover:bg-black/5 text-gray-500'
-                    }`}
-                  >
-                    <ChevronLeft className="w-5 h-5" />
-                  </motion.button>
-                  <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                     Редактировать профиль
                   </span>
                 </div>
 
-                <div className="space-y-4 px-2">
+                <div className="flex flex-col gap-4 px-2 mb-4">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className={`w-20 h-20 rounded-full flex items-center justify-center text-3xl font-bold text-white shadow-lg ${getAvatarColor(profile?.display_name || user?.email || 'U')}`}>
+                      {profile?.avatar_url ? (
+                        <img src={profile.avatar_url} alt="Avatar" className="w-full h-full rounded-full object-cover" />
+                      ) : (
+                        (profile?.display_name || user?.email || 'U')[0].toUpperCase()
+                      )}
+                    </div>
+                    <div className="relative w-full">
+                      <input 
+                        type="file" 
+                        id="avatar-upload" 
+                        className="hidden" 
+                        accept="image/*"
+                        onChange={handleAvatarUpload}
+                      />
+                      <motion.button 
+                        whileTap={{ scale: 0.97 }}
+                        onTapStart={() => setIsSettingsInteracting(true)}
+                        onTap={() => setIsSettingsInteracting(false)}
+                        onTapCancel={() => setIsSettingsInteracting(false)}
+                        onClick={() => document.getElementById('avatar-upload')?.click()}
+                        className={`w-full flex items-center justify-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                          theme === 'dark' 
+                            ? 'bg-white/5 hover:bg-white/10 text-white' 
+                            : 'bg-black/5 hover:bg-black/10 text-gray-900'
+                        }`}
+                      >
+                        <Camera className="w-4 h-4" />
+                        Изменить фото
+                      </motion.button>
+                    </div>
+                  </div>
+
                   <div>
                     <label className={`text-xs font-medium mb-1 block ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>
                       Имя пользователя
@@ -1768,26 +1741,46 @@ export default function App() {
                       type="text"
                       value={tempName}
                       onChange={(e) => setTempName(e.target.value)}
-                      className={`w-full h-10 px-4 rounded-xl outline-none transition-colors ${
+                      className={`appearance-none border border-transparent shadow-none w-full h-10 px-4 text-sm transition-all duration-300 focus:outline-none focus:ring-0 rounded-full ${
                         theme === 'dark' 
-                          ? 'bg-white/5 border border-white/10 text-white focus:border-white/20' 
-                          : 'bg-gray-50 border border-gray-200 text-gray-900 focus:border-gray-300'
+                          ? 'bg-white/10 text-white placeholder-white/40 focus:bg-white/20' 
+                          : 'bg-gray-300 text-gray-900 placeholder-gray-500 focus:bg-gray-400'
                       }`}
                     />
                   </div>
 
                   <motion.button 
                     whileTap={{ scale: 0.97 }}
+                    onTapStart={() => setIsSettingsInteracting(true)}
+                    onTap={() => setIsSettingsInteracting(false)}
+                    onTapCancel={() => setIsSettingsInteracting(false)}
                     onClick={handleUpdateProfile}
-                    className={`w-full h-10 rounded-xl font-medium text-white transition-all ${getAccentClass('bg')} ${getAccentClass('hover')}`}
+                    className={`w-full h-10 rounded-full font-medium text-white transition-all ${getAccentClass('bg')} ${getAccentClass('hover')}`}
                   >
                     Сохранить
                   </motion.button>
+                </div>
 
-                  <div className={`h-px w-full my-2 ${theme === 'dark' ? 'bg-white/10' : 'bg-black/5'}`} />
+                <div className={`h-px w-full my-2 ${theme === 'dark' ? 'bg-white/10' : 'bg-black/5'}`} />
+
+                <div className="flex flex-col">
+                  <motion.button 
+                    whileTap={{ scale: 0.97 }}
+                    onTapStart={() => setIsSettingsInteracting(true)}
+                    onTap={() => setIsSettingsInteracting(false)}
+                    onTapCancel={() => setIsSettingsInteracting(false)}
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-full text-sm font-medium transition-colors text-red-500 hover:bg-red-500/10 active:bg-red-500/20"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Выйти из аккаунта
+                  </motion.button>
 
                   <motion.button 
                     whileTap={{ scale: 0.97 }}
+                    onTapStart={() => setIsSettingsInteracting(true)}
+                    onTap={() => setIsSettingsInteracting(false)}
+                    onTapCancel={() => setIsSettingsInteracting(false)}
                     onClick={handleDeleteAccount}
                     className="w-full flex items-center gap-3 px-4 py-3 rounded-full text-sm font-medium transition-colors text-red-500 hover:bg-red-500/10 active:bg-red-500/20"
                   >
@@ -1800,17 +1793,22 @@ export default function App() {
           ) : settingsView === 'customization' ? (
             <motion.div 
               key="customization"
-              initial={{ scale: 0 }}
+              initial={{ scale: 0, opacity: 0, z: 0 }}
               animate={{ 
                 scale: isSettingsInteracting ? 0.97 : 1, 
+                opacity: 1,
+                z: 0,
                 transition: { type: "spring", damping: 25, stiffness: 300 } 
               }}
-              exit={{ scale: 0, transition: { duration: 0.15, ease: "easeOut" } }}
-              style={{ transformOrigin: 'calc(100% - 44px) 22px', willChange: "transform" }}
-              className={`fixed top-4 right-4 md:right-8 z-[201] w-64 rounded-[2rem] overflow-hidden p-2 hyper-glass hyper-glass-shadow`}
+              exit={{ scale: 0, opacity: 0, z: 0, transition: { duration: 0.15, ease: "easeOut" } }}
+              style={{ 
+                transformOrigin: 'calc(100% - 44px) 22px', 
+                willChange: "transform, opacity"
+              }}
+              className={`fixed top-4 right-4 md:right-8 z-[201] w-72 rounded-[2rem] overflow-hidden p-4 hyper-glass hyper-glass-shadow`}
             >
               <div className="flex flex-col">
-                <div className="flex items-center gap-2 px-2 pb-2">
+                <div className="flex items-center gap-2 mb-4 px-2">
                   <motion.button 
                     whileTap={{ scale: 0.97 }}
                     onTapStart={() => setIsSettingsInteracting(true)}
@@ -1828,17 +1826,15 @@ export default function App() {
                   </span>
                 </div>
 
-                <motion.div layout className="flex flex-col gap-1">
+                <div className="flex flex-col">
                   {/* Color Selection */}
-                  <motion.div 
-                    layout
-                    transition={{ duration: 0.3, ease: "easeInOut" }}
-                    className={`rounded-3xl overflow-hidden transition-colors ${
+                  <div 
+                    className={`rounded-[1.5rem] overflow-hidden transition-colors ${
                       theme === 'dark' ? 'hover:bg-white/5' : 'hover:bg-black/5'
                     }`}
                   >
                     <motion.button
-                      layout="position"
+                      whileTap={{ scale: 0.97 }}
                       onTapStart={() => setIsSettingsInteracting(true)}
                       onTap={() => setIsSettingsInteracting(false)}
                       onTapCancel={() => setIsSettingsInteracting(false)}
@@ -1862,10 +1858,11 @@ export default function App() {
                       transition={{ duration: 0.3, ease: "easeInOut" }}
                       className="overflow-hidden"
                     >
-                      <div className="px-2 pb-2 flex flex-col gap-1">
+                      <div className="px-2 pb-2 flex flex-col">
                         {ACCENT_COLORS.map((color) => (
                           <motion.button
                             key={color.id}
+                            whileTap={{ scale: 0.97 }}
                             onTapStart={() => setIsSettingsInteracting(true)}
                             onTap={() => setIsSettingsInteracting(false)}
                             onTapCancel={() => setIsSettingsInteracting(false)}
@@ -1884,73 +1881,105 @@ export default function App() {
                         ))}
                       </div>
                     </motion.div>
-                  </motion.div>
+                  </div>
 
                   {/* Separator */}
-                  <motion.div 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: isColorExpanded ? 1 : 0 }}
-                    className={`h-px mx-2 ${theme === 'dark' ? 'bg-white/10' : 'bg-black/5'}`} 
-                  />
+                  <AnimatePresence>
+                    {isColorExpanded && (
+                      <motion.div 
+                        initial={{ opacity: 0, height: 0, marginTop: 0, marginBottom: 0 }}
+                        animate={{ opacity: 1, height: 1, marginTop: 8, marginBottom: 8 }}
+                        exit={{ opacity: 0, height: 0, marginTop: 0, marginBottom: 0 }}
+                        className={`w-full ${theme === 'dark' ? 'bg-white/10' : 'bg-black/5'}`} 
+                      />
+                    )}
+                  </AnimatePresence>
 
-                  {/* Glow Toggle */}
-                  <motion.div 
-                    layout="position"
+                  {/* Dark Theme Toggle */}
+                  <motion.button 
+                    whileTap={{ scale: 0.97 }}
                     onTapStart={() => setIsSettingsInteracting(true)}
                     onTap={() => setIsSettingsInteracting(false)}
                     onTapCancel={() => setIsSettingsInteracting(false)}
-                    className={`rounded-full px-4 py-2.5 flex items-center justify-between transition-colors ${
+                    onClick={toggleTheme}
+                    className={`w-full rounded-full px-4 py-3 flex items-center justify-between transition-colors cursor-pointer ${
+                      theme === 'dark' ? 'hover:bg-white/5 active:bg-white/10' : 'hover:bg-black/5 active:bg-black/10'
+                    }`}
+                  >
+                    <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                      Темная тема
+                    </span>
+                    <div
+                      className={`w-10 h-6 rounded-full transition-colors relative flex items-center ${
+                        theme === 'dark' ? getAccentClass('bg') : 'bg-gray-300'
+                      }`}
+                    >
+                      <motion.div 
+                        animate={{ 
+                          x: theme === 'dark' ? 20 : 4,
+                          width: 16,
+                          backgroundColor: "rgba(255,255,255,1)",
+                          backdropFilter: "blur(0px)"
+                        }}
+                        transition={{ type: "spring", damping: 20, stiffness: 300 }}
+                        className="absolute left-0 h-4 rounded-full shadow-sm"
+                      />
+                    </div>
+                  </motion.button>
+
+                  {/* Glow Toggle */}
+                  <motion.button 
+                    whileTap={{ scale: 0.97 }}
+                    onTapStart={() => setIsSettingsInteracting(true)}
+                    onTap={() => setIsSettingsInteracting(false)}
+                    onTapCancel={() => setIsSettingsInteracting(false)}
+                    onClick={() => setIsGlowEnabled(!isGlowEnabled)}
+                    className={`w-full rounded-full px-4 py-3 flex items-center justify-between transition-colors cursor-pointer ${
                       theme === 'dark' ? 'hover:bg-white/5 active:bg-white/10' : 'hover:bg-black/5 active:bg-black/10'
                     }`}
                   >
                     <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                       Эффекты сияния
                     </span>
-                    <motion.button
-                      onClick={() => setIsGlowEnabled(!isGlowEnabled)}
-                      whileTap="pressed"
-                      className={`w-14 h-7 rounded-full transition-colors relative flex items-center ${
+                    <div
+                      className={`w-10 h-6 rounded-full transition-colors relative flex items-center ${
                         isGlowEnabled ? getAccentClass('bg') : (theme === 'dark' ? 'bg-white/20' : 'bg-gray-300')
                       }`}
                     >
                       <motion.div 
-                        custom={isGlowEnabled}
-                        variants={{
-                          pressed: (isEnabled: boolean) => ({
-                            width: 32,
-                            x: isEnabled ? 20 : 4,
-                            backgroundColor: "rgba(255,255,255,0.7)",
-                            backdropFilter: "blur(8px)"
-                          })
-                        }}
                         animate={{ 
-                          x: isGlowEnabled ? 28 : 4,
-                          width: 24,
+                          x: isGlowEnabled ? 20 : 4,
+                          width: 16,
                           backgroundColor: "rgba(255,255,255,1)",
                           backdropFilter: "blur(0px)"
                         }}
                         transition={{ type: "spring", damping: 20, stiffness: 300 }}
-                        className="absolute left-0 h-5 rounded-full shadow-sm"
+                        className="absolute left-0 h-4 rounded-full shadow-sm"
                       />
-                    </motion.button>
-                  </motion.div>
-                </motion.div>
+                    </div>
+                  </motion.button>
+                </div>
               </div>
             </motion.div>
           ) : (
             <motion.div 
               key="about"
-              initial={{ scale: 0 }}
+              initial={{ scale: 0, opacity: 0, z: 0 }}
               animate={{ 
                 scale: isSettingsInteracting ? 0.97 : 1, 
+                opacity: 1,
+                z: 0,
                 transition: { type: "spring", damping: 25, stiffness: 300 } 
               }}
-              exit={{ scale: 0, transition: { duration: 0.15, ease: "easeOut" } }}
-              style={{ transformOrigin: 'calc(100% - 44px) 22px', willChange: "transform" }}
-              className={`fixed top-4 right-4 md:right-8 z-[201] w-64 rounded-[2rem] overflow-hidden p-2 hyper-glass hyper-glass-shadow`}
+              exit={{ scale: 0, opacity: 0, z: 0, transition: { duration: 0.15, ease: "easeOut" } }}
+              style={{ 
+                transformOrigin: 'calc(100% - 44px) 22px', 
+                willChange: "transform, opacity"
+              }}
+              className={`fixed top-4 right-4 md:right-8 z-[201] w-72 rounded-[2rem] overflow-hidden p-4 hyper-glass hyper-glass-shadow`}
             >
               <div className="flex flex-col">
-                <div className="flex items-center gap-2 px-2 pb-2">
+                <div className="flex items-center gap-2 mb-4 px-2">
                   <motion.button 
                     whileTap={{ scale: 0.97 }}
                     onTapStart={() => setIsSettingsInteracting(true)}
@@ -1972,24 +2001,35 @@ export default function App() {
                     Версия
                   </span>
                   <span className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>
-                    1.0.0
+                    1.1
                   </span>
                 </div>
-                <div className="px-2 pb-2">
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => handleReport()}
-                    className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-colors ${
-                      theme === 'dark' 
-                        ? 'hover:bg-white/10 active:bg-white/20 text-red-400' 
-                        : 'hover:bg-black/5 active:bg-black/10 text-red-500'
-                    }`}
-                  >
-                    <Flag className="w-4 h-4" />
-                    Пожаловаться
-                  </motion.button>
-                </div>
+
+                <div className={`h-px w-full my-2 ${theme === 'dark' ? 'bg-white/10' : 'bg-black/5'}`} />
+
+                <motion.button 
+                  whileTap={{ scale: 0.97 }}
+                  onTapStart={() => setIsSettingsInteracting(true)}
+                  onTap={() => setIsSettingsInteracting(false)}
+                  onTapCancel={() => setIsSettingsInteracting(false)}
+                  onClick={deleteAllChats}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-full text-sm font-medium transition-colors text-red-500 hover:bg-red-500/10 active:bg-red-500/20"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Удалить все чаты
+                </motion.button>
+
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
+                  onTapStart={() => setIsSettingsInteracting(true)}
+                  onTap={() => setIsSettingsInteracting(false)}
+                  onTapCancel={() => setIsSettingsInteracting(false)}
+                  onClick={() => handleReport()}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-full text-sm font-medium transition-colors text-red-500 hover:bg-red-500/10 active:bg-red-500/20"
+                >
+                  <Flag className="w-4 h-4" />
+                  Пожаловаться
+                </motion.button>
               </div>
             </motion.div>
           )
