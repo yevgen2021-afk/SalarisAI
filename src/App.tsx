@@ -63,8 +63,12 @@ export default function App() {
     
     if (data) {
       setProfile(data);
-    } else if (error && error.code !== 'PGRST116') {
+    } else if (error) {
       console.error('Error fetching profile:', error);
+      // Если профиль не найден (PGRST116)
+      if (error.code === 'PGRST116') {
+        console.warn('Profile not found.');
+      }
     }
   }, [user]);
 
@@ -209,32 +213,16 @@ export default function App() {
     setIsLoading(false);
   }, []);
 
+  // Periodic check to verify user existence (handles external deletion)
+  // Removed as requested
+  useEffect(() => {
+    if (!supabase || !user) return;
+  }, [user]);
+
   // Load data from localforage on mount
   useEffect(() => {
     // Auth Listener
     if (supabase) {
-      const authTimeout = setTimeout(() => {
-        console.warn('Auth session check timed out');
-        setIsAuthReady(true);
-      }, 5000);
-
-      supabase.auth.getSession().then(({ data: { session }, error }) => {
-        clearTimeout(authTimeout);
-        if (error) {
-          console.error('Session error:', error.message);
-          // If the refresh token is invalid or not found, force a sign out to clear the corrupted local state
-          if (error.message.toLowerCase().includes('refresh token')) {
-            supabase.auth.signOut().catch(() => {});
-          }
-        }
-        setUser(session?.user ?? null);
-        setIsAuthReady(true);
-      }).catch(err => {
-        clearTimeout(authTimeout);
-        console.error('Auth session error:', err);
-        setIsAuthReady(true);
-      });
-
       const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
         if (event === 'SIGNED_OUT') {
           setUser(null);
@@ -243,6 +231,7 @@ export default function App() {
         }
       });
 
+      setIsAuthReady(true);
       return () => subscription.unsubscribe();
     } else {
       setIsAuthReady(true); // If no supabase configured, just proceed
@@ -600,9 +589,7 @@ export default function App() {
       if (error instanceof Error) {
         errorText = error.message;
         if (errorText.includes('429') || errorText.includes('quota') || errorText.includes('RESOURCE_EXHAUSTED')) {
-          const key = getApiKey();
-          const maskedKey = key ? `${key.substring(0, 8)}...` : 'отсутствует';
-          errorText = `Превышен лимит запросов к API Google (Quota Exceeded). Пожалуйста, подождите (лимиты сбрасываются) или проверьте ваш аккаунт Google AI Studio. (Используется ключ: ${maskedKey})`;
+          errorText = `Превышен лимит запросов к API Google (Quota Exceeded). Пожалуйста, подождите (лимиты сбрасываются) или проверьте ваш аккаунт Google AI Studio.`;
         } else if (errorText.includes('{')) {
           try {
             // Attempt to extract a cleaner message if it's JSON
@@ -730,9 +717,7 @@ export default function App() {
       if (error instanceof Error) {
         errorText = error.message;
         if (errorText.includes('429') || errorText.includes('quota') || errorText.includes('RESOURCE_EXHAUSTED')) {
-          const key = getApiKey();
-          const maskedKey = key ? `${key.substring(0, 8)}...` : 'отсутствует';
-          errorText = `Превышен лимит запросов к API Google (Quota Exceeded). Пожалуйста, подождите (лимиты сбрасываются) или проверьте ваш аккаунт Google AI Studio. (Используется ключ: ${maskedKey})`;
+          errorText = `Превышен лимит запросов к API Google (Quota Exceeded). Пожалуйста, подождите (лимиты сбрасываются) или проверьте ваш аккаунт Google AI Studio.`;
         } else if (errorText.includes('{')) {
           try {
             const match = errorText.match(/"message":\s*"([^"]+)"/);
