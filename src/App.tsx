@@ -243,26 +243,40 @@ export default function App() {
 
     // Проверка раз в 30 секунд для быстрой реакции на блокировку/удаление
     const checkInterval = setInterval(async () => {
-      const { data: { user: verifiedUser }, error } = await supabase.auth.getUser();
-      if (error || !verifiedUser) {
-        console.warn('User session invalid or user deleted externally. Signing out...');
-        supabase.auth.signOut().catch(() => {});
-        setUser(null);
-        setProfile(null);
-        setIsBanned(false);
-      } else {
+      try {
+        const { data: { user: verifiedUser }, error: authError } = await supabase.auth.getUser();
+        
+        if (authError || !verifiedUser) {
+          console.warn('User session invalid or user deleted externally. Signing out...');
+          supabase.auth.signOut().catch(() => {});
+          setUser(null);
+          setProfile(null);
+          setIsBanned(false);
+          return;
+        }
+
         // Проверяем статус блокировки в профиле
-        const { data: profileData } = await supabase
+        const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('is_banned')
           .eq('id', verifiedUser.id)
           .single();
         
-        if (profileData?.is_banned) {
+        if (profileError) {
+          console.error('Error checking ban status in interval:', profileError);
+          return;
+        }
+        
+        console.log('Current ban status from DB:', profileData?.is_banned);
+        
+        if (profileData?.is_banned === true) {
+          console.log('User is banned, showing blocked screen');
           setIsBanned(true);
         } else {
           setIsBanned(false);
         }
+      } catch (err) {
+        console.error('Interval check failed:', err);
       }
     }, 30000); 
 
@@ -277,7 +291,9 @@ export default function App() {
       // getUser() делает запрос к серверу, в отличие от getSession()
       supabase.auth.getUser().then(({ data: { user: initialUser }, error }) => {
         if (error || !initialUser) {
-          if (error) console.error('Initial auth check error:', error.message);
+          if (error && error.message !== 'Auth session missing!') {
+            console.error('Initial auth check error:', error.message);
+          }
           setUser(null);
         } else {
           setUser(initialUser);
