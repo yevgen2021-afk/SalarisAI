@@ -241,7 +241,7 @@ export default function App() {
   useEffect(() => {
     if (!supabase || !user) return;
 
-    // Проверка раз в 2 минуты для баланса между скоростью реакции и нагрузкой
+    // Проверка раз в 30 секунд для быстрой реакции на блокировку/удаление
     const checkInterval = setInterval(async () => {
       const { data: { user: verifiedUser }, error } = await supabase.auth.getUser();
       if (error || !verifiedUser) {
@@ -264,7 +264,7 @@ export default function App() {
           setIsBanned(false);
         }
       }
-    }, 120000); 
+    }, 30000); 
 
     return () => clearInterval(checkInterval);
   }, [user]);
