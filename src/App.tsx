@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import localforage from 'localforage';
-import { ArrowUp, Menu, Settings, Moon, Sun, Trash2, Info, X, SquarePen, Plus, Paintbrush, ChevronLeft, Check, Square, Brain, Flag, User, LogOut, Camera, Loader2, Shield } from 'lucide-react';
+import { ArrowUp, Menu, Settings, Moon, Sun, Trash2, Info, X, SquarePen, Plus, Paintbrush, ChevronLeft, Check, Square, Brain, Flag, User, LogOut, Camera, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Chat, Message } from './types';
 import { generateGroqResponseStream } from './services/groq';
@@ -8,8 +8,8 @@ import ChatMessage from './components/ChatMessage';
 import Dashboard from './components/Dashboard';
 import Sidebar from './components/Sidebar';
 import AuthScreen from './components/AuthScreen';
-import BannedScreen from './components/BannedScreen';
 import ReportModal from './components/ReportModal';
+import BannedScreen from './components/BannedScreen';
 import { supabase } from './lib/supabase';
 
 const createNewChat = (): Chat => ({
@@ -44,14 +44,13 @@ export default function App() {
 
   // Auth & Report State
   const [user, setUser] = useState<any>(null);
-  const [userProfile, setUserProfile] = useState<{ is_banned: boolean } | null>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   const [settingsView, setSettingsView] = useState<'main' | 'customization' | 'about' | 'account' | 'edit-profile'>('main');
   const [isColorExpanded, setIsColorExpanded] = useState(false);
   const [isSettingsInteracting, setIsSettingsInteracting] = useState(false);
-  const [profile, setProfile] = useState<{ display_name?: string, avatar_url?: string } | null>(null);
+  const [profile, setProfile] = useState<{ display_name?: string, avatar_url?: string, is_banned?: boolean } | null>(null);
   const [tempName, setTempName] = useState('');
 
 
@@ -59,14 +58,21 @@ export default function App() {
     if (!supabase || !user) return;
     const { data, error } = await supabase
       .from('profiles')
-      .select('display_name, avatar_url')
+      .select('display_name, avatar_url, is_banned')
       .eq('id', user.id)
       .single();
     
     if (data) {
       setProfile(data);
-    } else if (error && error.code !== 'PGRST116') {
-      console.error('Error fetching profile:', error);
+    } else {
+      // Если профиль не найден, устанавливаем значения по умолчанию, чтобы остановить загрузку
+      setProfile({ 
+        display_name: user.user_metadata?.display_name || user.email?.split('@')[0] || 'Пользователь', 
+        is_banned: false 
+      });
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching profile:', error);
+      }
     }
   }, [user]);
 
@@ -220,77 +226,32 @@ export default function App() {
         setIsAuthReady(true);
       }, 5000);
 
-      let profileSubscription: any = null;
-
-      const setupProfileSubscription = async (userId: string) => {
-        try {
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('is_banned')
-            .eq('id', userId)
-            .single();
-          if (!error && data) {
-            setUserProfile(data);
-          }
-        } catch (err) {
-          console.error('Error fetching profile:', err);
-        }
-
-        if (profileSubscription) {
-          supabase.removeChannel(profileSubscription);
-        }
-        
-        profileSubscription = supabase
-          .channel(`public:profiles:${userId}`)
-          .on(
-            'postgres_changes',
-            {
-              event: 'UPDATE',
-              schema: 'public',
-              table: 'profiles',
-              filter: `id=eq.${userId}`
-            },
-            (payload) => {
-              console.log('Profile updated via realtime:', payload);
-              setUserProfile(payload.new as { is_banned: boolean });
-            }
-          )
-          .subscribe();
-      };
-
-      supabase.auth.getSession().then(({ data: { session } }) => {
+      supabase.auth.getSession().then(({ data: { session }, error }) => {
         clearTimeout(authTimeout);
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          setupProfileSubscription(session.user.id).finally(() => setIsAuthReady(true));
-        } else {
-          setIsAuthReady(true);
+        if (error) {
+          console.error('Session error:', error.message);
+          // If the refresh token is invalid or not found, force a sign out to clear the corrupted local state
+          if (error.message.toLowerCase().includes('refresh token')) {
+            supabase.auth.signOut().catch(() => {});
+          }
         }
+        setUser(session?.user ?? null);
+        setIsAuthReady(true);
       }).catch(err => {
         clearTimeout(authTimeout);
         console.error('Auth session error:', err);
         setIsAuthReady(true);
       });
 
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          setupProfileSubscription(session.user.id);
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_OUT') {
+          setUser(null);
         } else {
-          setUserProfile(null);
-          if (profileSubscription) {
-            supabase.removeChannel(profileSubscription);
-            profileSubscription = null;
-          }
+          setUser(session?.user ?? null);
         }
       });
 
-      return () => {
-        subscription.unsubscribe();
-        if (profileSubscription) {
-          supabase.removeChannel(profileSubscription);
-        }
-      };
+      return () => subscription.unsubscribe();
     } else {
       setIsAuthReady(true); // If no supabase configured, just proceed
     }
@@ -888,7 +849,7 @@ export default function App() {
     }
   };
 
-  if (!isLoaded || !isAuthReady) {
+  if (!isLoaded || !isAuthReady || (user && !profile)) {
     return (
       <div className={`flex h-screen items-center justify-center ${theme === 'dark' ? 'bg-[#050505]' : 'bg-[#f8f9fa]'}`}>
         <div className="w-8 h-8 rounded-full border-2 border-cyan-500 border-t-transparent animate-spin"></div>
@@ -900,8 +861,8 @@ export default function App() {
     return <AuthScreen theme={theme} accentColor={accentColor} onLoginSuccess={(u) => setUser(u)} />;
   }
 
-  if (userProfile?.is_banned) {
-    return <BannedScreen theme={theme} onLogout={() => { setUser(null); setUserProfile(null); }} />;
+  if (profile?.is_banned) {
+    return <BannedScreen theme={theme} onLogout={handleLogout} userEmail={user.email} />;
   }
 
   return (

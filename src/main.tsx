@@ -24,11 +24,27 @@ class ErrorBoundary extends Component<{children: ReactNode}, {hasError: boolean,
 
   render() {
     if (this.state.hasError) {
+      const isTranslationError = this.state.error?.message?.includes('removeChild') || this.state.error?.message?.includes('insertBefore');
+      
       return (
-        <div style={{ padding: 20, color: 'red', background: 'black', height: '100vh' }}>
-          <h1>Something went wrong.</h1>
-          <pre style={{ whiteSpace: 'pre-wrap' }}>{this.state.error?.toString()}</pre>
-          <pre style={{ whiteSpace: 'pre-wrap' }}>{this.state.error?.stack}</pre>
+        <div style={{ padding: '20px', color: 'white', background: '#111827', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif' }}>
+          <h1 style={{ marginBottom: '10px' }}>Упс! Что-то пошло не так.</h1>
+          {isTranslationError && (
+            <p style={{ marginBottom: '20px', textAlign: 'center', maxWidth: '500px', color: '#9ca3af', lineHeight: '1.5' }}>
+              Похоже, в вашем браузере сработал автопереводчик или расширение, которое нарушило структуру страницы. Мы заблокировали эту проблему для будущих сеансов.
+            </p>
+          )}
+          <button 
+            onClick={() => window.location.reload()} 
+            style={{ padding: '12px 24px', background: '#06b6d4', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '16px', fontWeight: 'bold', marginTop: '10px' }}
+          >
+            Обновить страницу
+          </button>
+          <details style={{ marginTop: '40px', color: '#6b7280', fontSize: '12px', maxWidth: '80vw', overflow: 'auto' }}>
+            <summary style={{ cursor: 'pointer' }}>Технические детали</summary>
+            <pre style={{ whiteSpace: 'pre-wrap', marginTop: '10px' }}>{this.state.error?.toString()}</pre>
+            <pre style={{ whiteSpace: 'pre-wrap' }}>{this.state.error?.stack}</pre>
+          </details>
         </div>
       );
     }
