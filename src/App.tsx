@@ -45,7 +45,7 @@ export default function App() {
   // Auth & Report State
   const [user, setUser] = useState<any>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
-  const [isBlocked, setIsBlocked] = useState(false);
+  const [isBanned, setIsBanned] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   const [settingsView, setSettingsView] = useState<'main' | 'customization' | 'about' | 'account' | 'edit-profile'>('main');
@@ -59,16 +59,16 @@ export default function App() {
     if (!supabase || !user) return;
     const { data, error } = await supabase
       .from('profiles')
-      .select('display_name, avatar_url, is_blocked')
+      .select('display_name, avatar_url, is_banned')
       .eq('id', user.id)
       .single();
     
     if (data) {
       setProfile(data);
-      if (data.is_blocked) {
-        setIsBlocked(true);
+      if (data.is_banned) {
+        setIsBanned(true);
       } else {
-        setIsBlocked(false);
+        setIsBanned(false);
       }
     } else if (error) {
       console.error('Error fetching profile:', error);
@@ -249,19 +249,19 @@ export default function App() {
         supabase.auth.signOut().catch(() => {});
         setUser(null);
         setProfile(null);
-        setIsBlocked(false);
+        setIsBanned(false);
       } else {
         // Проверяем статус блокировки в профиле
         const { data: profileData } = await supabase
           .from('profiles')
-          .select('is_blocked')
+          .select('is_banned')
           .eq('id', verifiedUser.id)
           .single();
         
-        if (profileData?.is_blocked) {
-          setIsBlocked(true);
+        if (profileData?.is_banned) {
+          setIsBanned(true);
         } else {
-          setIsBlocked(false);
+          setIsBanned(false);
         }
       }
     }, 120000); 
@@ -291,7 +291,7 @@ export default function App() {
         if (event === 'SIGNED_OUT') {
           setUser(null);
           setProfile(null);
-          setIsBlocked(false);
+          setIsBanned(false);
         } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
           setUser(session?.user ?? null);
         }
@@ -903,7 +903,7 @@ export default function App() {
     return <AuthScreen theme={theme} accentColor={accentColor} onLoginSuccess={(u) => setUser(u)} />;
   }
 
-  if (isBlocked) {
+  if (isBanned) {
     return <BlockedScreen theme={theme} onLogout={handleLogout} />;
   }
 
