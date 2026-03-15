@@ -8,6 +8,7 @@ import ChatMessage from './components/ChatMessage';
 import Dashboard from './components/Dashboard';
 import Sidebar from './components/Sidebar';
 import AuthScreen from './components/AuthScreen';
+import BlockedScreen from './components/BlockedScreen';
 import ReportModal from './components/ReportModal';
 import { supabase } from './lib/supabase';
 
@@ -44,6 +45,7 @@ export default function App() {
   // Auth & Report State
   const [user, setUser] = useState<any>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   const [settingsView, setSettingsView] = useState<'main' | 'customization' | 'about' | 'account' | 'edit-profile'>('main');
@@ -57,17 +59,39 @@ export default function App() {
     if (!supabase || !user) return;
     const { data, error } = await supabase
       .from('profiles')
-      .select('display_name, avatar_url')
+      .select('display_name, avatar_url, is_blocked')
       .eq('id', user.id)
       .single();
     
     if (data) {
       setProfile(data);
+      if (data.is_blocked) {
+        setIsBlocked(true);
+      } else {
+        setIsBlocked(false);
+      }
     } else if (error) {
       console.error('Error fetching profile:', error);
       // Если профиль не найден (PGRST116)
       if (error.code === 'PGRST116') {
-        console.warn('Profile not found.');
+        console.warn('Profile not found. Verifying user existence...');
+        // Проверяем, существует ли еще пользователь в auth
+        const { data: { user: verifiedUser }, error: userError } = await supabase.auth.getUser();
+        if (userError || !verifiedUser) {
+          console.error('User no longer exists. Signing out...');
+          supabase.auth.signOut().catch(() => {});
+          setUser(null);
+          setProfile(null);
+        }
+      } else if (error.code === '42501' || error.message.toLowerCase().includes('permission denied') || error.message.toLowerCase().includes('jwt')) {
+        // Ошибка прав доступа или JWT - скорее всего сессия недействительна
+        console.warn('Access denied or invalid token. Verifying user existence...');
+        const { data: { user: verifiedUser }, error: userError } = await supabase.auth.getUser();
+        if (userError || !verifiedUser) {
+          supabase.auth.signOut().catch(() => {});
+          setUser(null);
+          setProfile(null);
+        }
       }
     }
   }, [user]);
@@ -214,24 +238,65 @@ export default function App() {
   }, []);
 
   // Periodic check to verify user existence (handles external deletion)
-  // Removed as requested
   useEffect(() => {
     if (!supabase || !user) return;
+
+    // Проверка раз в 2 минуты для баланса между скоростью реакции и нагрузкой
+    const checkInterval = setInterval(async () => {
+      const { data: { user: verifiedUser }, error } = await supabase.auth.getUser();
+      if (error || !verifiedUser) {
+        console.warn('User session invalid or user deleted externally. Signing out...');
+        supabase.auth.signOut().catch(() => {});
+        setUser(null);
+        setProfile(null);
+        setIsBlocked(false);
+      } else {
+        // Проверяем статус блокировки в профиле
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('is_blocked')
+          .eq('id', verifiedUser.id)
+          .single();
+        
+        if (profileData?.is_blocked) {
+          setIsBlocked(true);
+        } else {
+          setIsBlocked(false);
+        }
+      }
+    }, 120000); 
+
+    return () => clearInterval(checkInterval);
   }, [user]);
 
   // Load data from localforage on mount
   useEffect(() => {
     // Auth Listener
     if (supabase) {
+      // Первичная проверка пользователя при загрузке
+      // getUser() делает запрос к серверу, в отличие от getSession()
+      supabase.auth.getUser().then(({ data: { user: initialUser }, error }) => {
+        if (error || !initialUser) {
+          if (error) console.error('Initial auth check error:', error.message);
+          setUser(null);
+        } else {
+          setUser(initialUser);
+        }
+        setIsAuthReady(true);
+      }).catch(() => {
+        setIsAuthReady(true);
+      });
+
       const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
         if (event === 'SIGNED_OUT') {
           setUser(null);
-        } else {
+          setProfile(null);
+          setIsBlocked(false);
+        } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
           setUser(session?.user ?? null);
         }
       });
 
-      setIsAuthReady(true);
       return () => subscription.unsubscribe();
     } else {
       setIsAuthReady(true); // If no supabase configured, just proceed
@@ -836,6 +901,10 @@ export default function App() {
 
   if (!user) {
     return <AuthScreen theme={theme} accentColor={accentColor} onLoginSuccess={(u) => setUser(u)} />;
+  }
+
+  if (isBlocked) {
+    return <BlockedScreen theme={theme} onLogout={handleLogout} />;
   }
 
   return (
