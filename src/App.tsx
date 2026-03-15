@@ -9,7 +9,6 @@ import Dashboard from './components/Dashboard';
 import Sidebar from './components/Sidebar';
 import AuthScreen from './components/AuthScreen';
 import ReportModal from './components/ReportModal';
-import BannedScreen from './components/BannedScreen';
 import { supabase } from './lib/supabase';
 
 const createNewChat = (): Chat => ({
@@ -50,7 +49,7 @@ export default function App() {
   const [settingsView, setSettingsView] = useState<'main' | 'customization' | 'about' | 'account' | 'edit-profile'>('main');
   const [isColorExpanded, setIsColorExpanded] = useState(false);
   const [isSettingsInteracting, setIsSettingsInteracting] = useState(false);
-  const [profile, setProfile] = useState<{ display_name?: string, avatar_url?: string, is_banned?: boolean } | null>(null);
+  const [profile, setProfile] = useState<{ display_name?: string, avatar_url?: string } | null>(null);
   const [tempName, setTempName] = useState('');
 
 
@@ -58,21 +57,14 @@ export default function App() {
     if (!supabase || !user) return;
     const { data, error } = await supabase
       .from('profiles')
-      .select('display_name, avatar_url, is_banned')
+      .select('display_name, avatar_url')
       .eq('id', user.id)
       .single();
     
     if (data) {
       setProfile(data);
-    } else {
-      // Если профиль не найден, устанавливаем значения по умолчанию, чтобы остановить загрузку
-      setProfile({ 
-        display_name: user.user_metadata?.display_name || user.email?.split('@')[0] || 'Пользователь', 
-        is_banned: false 
-      });
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching profile:', error);
-      }
+    } else if (error && error.code !== 'PGRST116') {
+      console.error('Error fetching profile:', error);
     }
   }, [user]);
 
@@ -849,7 +841,7 @@ export default function App() {
     }
   };
 
-  if (!isLoaded || !isAuthReady || (user && !profile)) {
+  if (!isLoaded || !isAuthReady) {
     return (
       <div className={`flex h-screen items-center justify-center ${theme === 'dark' ? 'bg-[#050505]' : 'bg-[#f8f9fa]'}`}>
         <div className="w-8 h-8 rounded-full border-2 border-cyan-500 border-t-transparent animate-spin"></div>
@@ -859,10 +851,6 @@ export default function App() {
 
   if (!user) {
     return <AuthScreen theme={theme} accentColor={accentColor} onLoginSuccess={(u) => setUser(u)} />;
-  }
-
-  if (profile?.is_banned) {
-    return <BannedScreen theme={theme} onLogout={handleLogout} userEmail={user.email} />;
   }
 
   return (
