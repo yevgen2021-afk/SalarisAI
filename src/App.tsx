@@ -365,7 +365,12 @@ export default function App() {
           setActiveChatId(newChat.id);
         }
 
-        if (storedTheme) setTheme(storedTheme);
+        if (storedTheme) {
+          setTheme(storedTheme);
+        } else {
+          const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          setTheme(systemTheme);
+        }
         if (storedAccentColor) setAccentColor(storedAccentColor);
         if (storedGlow !== null) setIsGlowEnabled(storedGlow);
         if (['llama-3.3-70b-versatile', 'meta-llama/llama-4-scout-17b-16e-instruct'].includes(storedModel || '')) {
@@ -399,6 +404,21 @@ export default function App() {
 
     return () => clearTimeout(timer);
   }, [chats, activeChatId, theme, accentColor, isGlowEnabled, selectedModel, isLoaded]);
+
+  // Listen for system theme changes
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (e: MediaQueryListEvent) => {
+      // Only update if user hasn't explicitly set a theme
+      localforage.getItem<'dark' | 'light'>('salaris_theme').then(storedTheme => {
+        if (!storedTheme) {
+          setTheme(e.matches ? 'dark' : 'light');
+        }
+      });
+    };
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
 
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
