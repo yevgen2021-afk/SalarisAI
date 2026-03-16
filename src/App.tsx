@@ -384,15 +384,20 @@ export default function App() {
     loadData();
   }, []);
 
-  // Save data to localforage on changes
+  // Save data to localforage on changes (debounced for performance)
   useEffect(() => {
     if (!isLoaded) return;
-    localforage.setItem('salaris_chats', chats);
-    localforage.setItem('salaris_active_chat', activeChatId);
-    localforage.setItem('salaris_theme', theme);
-    localforage.setItem('salaris_accent', accentColor);
-    localforage.setItem('salaris_glow', isGlowEnabled);
-    localforage.setItem('salaris_model', selectedModel);
+    
+    const timer = setTimeout(() => {
+      localforage.setItem('salaris_chats', chats);
+      localforage.setItem('salaris_active_chat', activeChatId);
+      localforage.setItem('salaris_theme', theme);
+      localforage.setItem('salaris_accent', accentColor);
+      localforage.setItem('salaris_glow', isGlowEnabled);
+      localforage.setItem('salaris_model', selectedModel);
+    }, 1000);
+
+    return () => clearTimeout(timer);
   }, [chats, activeChatId, theme, accentColor, isGlowEnabled, selectedModel, isLoaded]);
 
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
@@ -643,22 +648,16 @@ export default function App() {
           isFirstChunk = false;
         }
         
-        const tokens = chunkText.match(/(\s+|\S+)/g) || [];
-        for (const token of tokens) {
-          if (stopGenerationRef.current) break;
-          currentTyped += token;
-          setChats(prev => prev.map(chat => {
-            if (chat.id === targetChatId) {
-              return {
-                ...chat,
-                messages: chat.messages.map(m => m.id === modelMessageId ? { ...m, content: currentTyped, isTyping: true } : m)
-              };
-            }
-            return chat;
-          }));
-          // Small delay for natural typing feel
-          await new Promise(resolve => setTimeout(resolve, 20 + Math.random() * 20));
-        }
+        currentTyped += chunkText;
+        setChats(prev => prev.map(chat => {
+          if (chat.id === targetChatId) {
+            return {
+              ...chat,
+              messages: chat.messages.map(m => m.id === modelMessageId ? { ...m, content: currentTyped, isTyping: true } : m)
+            };
+          }
+          return chat;
+        }));
         if (stopGenerationRef.current) break;
       }
       setIsGenerating(false);

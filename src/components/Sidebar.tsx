@@ -21,7 +21,7 @@ interface SidebarProps {
   editingChatId: string | null;
 }
 
-const Sidebar = ({
+const Sidebar = React.memo(({
   isSidebarOpen,
   setIsSidebarOpen,
   theme,
@@ -162,6 +162,6 @@ const Sidebar = ({
       </aside>
     </>
   );
-};
+});
 
 export default Sidebar;

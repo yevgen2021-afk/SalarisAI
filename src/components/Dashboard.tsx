@@ -37,7 +37,7 @@ const HoverWidget = ({ children, className, glowColor, onClick }: { children: Re
   );
 };
 
-const Dashboard = ({ theme, onActionClick }: DashboardProps) => {
+const Dashboard = React.memo(({ theme, onActionClick }: DashboardProps) => {
   return (
     <div className="flex-1 flex flex-col items-start justify-end relative w-full h-full pb-4 md:pb-10">
       <motion.div 
@@ -68,6 +68,6 @@ const Dashboard = ({ theme, onActionClick }: DashboardProps) => {
       </motion.div>
     </div>
   );
-};
+});
 
 export default Dashboard;
