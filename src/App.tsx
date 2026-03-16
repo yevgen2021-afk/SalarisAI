@@ -242,7 +242,7 @@ export default function App() {
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
   const [isActionMenuInteracting, setIsActionMenuInteracting] = useState(false);
   const [actionMenuView, setActionMenuView] = useState<'main' | 'model'>('main');
-  const [selectedModel, setSelectedModel] = useState<'llama-3.3-70b-versatile' | 'llama-3.1-8b-instant'>('llama-3.1-8b-instant');
+  const [selectedModel, setSelectedModel] = useState<'llama-3.3-70b-versatile' | 'meta-llama/llama-4-scout-17b-16e-instruct'>('meta-llama/llama-4-scout-17b-16e-instruct');
   const [isThinkingMode, setIsThinkingMode] = useState<boolean>(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -398,11 +398,11 @@ export default function App() {
         }
         if (storedAccentColor) setAccentColor(storedAccentColor);
         if (storedGlow !== null) setIsGlowEnabled(storedGlow);
-        if (['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'].includes(storedModel || '')) {
+        if (['llama-3.3-70b-versatile', 'meta-llama/llama-4-scout-17b-16e-instruct'].includes(storedModel || '')) {
           setSelectedModel(storedModel as any);
         } else {
-          setSelectedModel('llama-3.1-8b-instant');
-          localforage.setItem('salaris_model', 'llama-3.1-8b-instant');
+          setSelectedModel('meta-llama/llama-4-scout-17b-16e-instruct');
+          localforage.setItem('salaris_model', 'meta-llama/llama-4-scout-17b-16e-instruct');
         }
       } catch (error) {
         // Silently handle localforage load errors
@@ -1319,7 +1319,7 @@ export default function App() {
                           onTapStart={() => setIsActionMenuInteracting(true)}
                           onTap={() => setIsActionMenuInteracting(false)}
                           onTapCancel={() => setIsActionMenuInteracting(false)}
-                          onClick={() => { setSelectedModel('llama-3.1-8b-instant'); setActionMenuView('main'); }}
+                          onClick={() => { setSelectedModel('meta-llama/llama-4-scout-17b-16e-instruct'); setActionMenuView('main'); }}
                           className={`flex flex-col items-start px-4 py-2.5 rounded-full text-sm font-medium transition-colors ${
                             theme === 'dark' 
                               ? 'hover:bg-white/10 active:bg-white/20 text-white' 
@@ -1328,7 +1328,7 @@ export default function App() {
                         >
                           <div className="flex items-center justify-between w-full">
                             Osmium
-                            {selectedModel === 'llama-3.1-8b-instant' && <Check className="w-4 h-4" />}
+                            {selectedModel === 'meta-llama/llama-4-scout-17b-16e-instruct' && <Check className="w-4 h-4" />}
                           </div>
                           <span className={`text-[11px] ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>Быстрый ответ</span>
                         </motion.button>
