@@ -32,20 +32,29 @@ export const generateGroqResponseStream = async function*(
     { role: 'user', content: userMsg }
   ];
 
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      model: model,
-      messages: messages,
-      stream: true,
-      temperature: 0.7,
-      max_tokens: 4096,
-    })
-  });
+  let response;
+  try {
+    response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: messages,
+        stream: true,
+        temperature: 0.7,
+        max_tokens: 4096,
+      })
+    });
+  } catch (e: any) {
+    console.error('Groq fetch error:', e);
+    if (e.message === 'Load failed') {
+      throw new Error('Groq API request failed (Load failed). This usually means the request was blocked by a browser extension or network policy.');
+    }
+    throw new Error(`Failed to connect to Groq API: ${e.message}`);
+  }
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));

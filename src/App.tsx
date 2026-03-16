@@ -57,7 +57,8 @@ export default function App() {
 
   const fetchProfile = useCallback(async () => {
     if (!supabase || !user) return;
-    const { data, error } = await supabase
+    try {
+      const { data, error } = await supabase
       .from('profiles')
       .select('display_name, avatar_url, is_banned')
       .eq('id', user.id)
@@ -93,6 +94,9 @@ export default function App() {
           setProfile(null);
         }
       }
+    }
+  } catch (err: any) {
+      console.error('Unexpected error in fetchProfile:', err);
     }
   }, [user]);
 
@@ -159,7 +163,12 @@ export default function App() {
 
       setProfile(prev => prev ? { ...prev, avatar_url: publicUrl } : { avatar_url: publicUrl });
     } catch (error: any) {
-      alert('Ошибка при загрузке аватара: ' + error.message);
+      console.error('Avatar upload error:', error);
+      if (error.message === 'Load failed') {
+        alert('Ошибка сети при загрузке аватара. Проверьте соединение.');
+      } else {
+        alert('Ошибка при загрузке аватара: ' + error.message);
+      }
     }
   };
 
@@ -293,13 +302,17 @@ export default function App() {
         if (error || !initialUser) {
           if (error && error.message !== 'Auth session missing!') {
             console.error('Initial auth check error:', error.message);
+            if (error.message === 'Load failed') {
+              console.error('Network error: Supabase auth request failed (Load failed).');
+            }
           }
           setUser(null);
         } else {
           setUser(initialUser);
         }
         setIsAuthReady(true);
-      }).catch(() => {
+      }).catch((err) => {
+        console.error('Auth check promise rejected:', err);
         setIsAuthReady(true);
       });
 
@@ -1609,7 +1622,17 @@ export default function App() {
                   <div className="flex items-center gap-4 mb-4 px-2">
                     <div className={`w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold text-white shadow-lg flex-shrink-0 ${getAvatarColor(profile?.display_name || user?.email || 'U')}`}>
                       {profile?.avatar_url ? (
-                        <img src={profile.avatar_url} alt="Avatar" decoding="async" className="w-full h-full rounded-full object-cover" />
+                        <img 
+                          src={profile.avatar_url} 
+                          alt="Avatar" 
+                          decoding="async" 
+                          referrerPolicy="no-referrer"
+                          onError={(e) => {
+                            console.error('Avatar load failed:', profile.avatar_url);
+                            e.currentTarget.style.display = 'none';
+                          }}
+                          className="w-full h-full rounded-full object-cover" 
+                        />
                       ) : (
                         (profile?.display_name || user?.email || 'U')[0].toUpperCase()
                       )}
@@ -1721,7 +1744,16 @@ export default function App() {
                   <div className="flex flex-col items-center gap-3">
                     <div className={`w-20 h-20 rounded-full flex items-center justify-center text-3xl font-bold text-white shadow-lg ${getAvatarColor(profile?.display_name || user?.email || 'U')}`}>
                       {profile?.avatar_url ? (
-                        <img src={profile.avatar_url} alt="Avatar" className="w-full h-full rounded-full object-cover" />
+                        <img 
+                          src={profile.avatar_url} 
+                          alt="Avatar" 
+                          referrerPolicy="no-referrer"
+                          onError={(e) => {
+                            console.error('Avatar load failed (settings):', profile.avatar_url);
+                            e.currentTarget.style.display = 'none';
+                          }}
+                          className="w-full h-full rounded-full object-cover" 
+                        />
                       ) : (
                         (profile?.display_name || user?.email || 'U')[0].toUpperCase()
                       )}
