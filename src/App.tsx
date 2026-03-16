@@ -3,7 +3,6 @@ import localforage from 'localforage';
 import { ArrowUp, Menu, Settings, Trash2, Info, X, SquarePen, Plus, Paintbrush, ChevronLeft, Check, Square, Brain, Flag, User, LogOut, Camera, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Chat, Message } from './types';
-import { generateGroqResponseStream } from './services/groq';
 import ChatMessage from './components/ChatMessage';
 import Dashboard from './components/Dashboard';
 import Sidebar from './components/Sidebar';
@@ -242,8 +241,6 @@ export default function App() {
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
   const [isActionMenuInteracting, setIsActionMenuInteracting] = useState(false);
   const [actionMenuView, setActionMenuView] = useState<'main' | 'model'>('main');
-  const [selectedModel, setSelectedModel] = useState<'llama-3.3-70b-versatile' | 'llama-3.1-8b-instant'>('llama-3.1-8b-instant');
-  const [isThinkingMode, setIsThinkingMode] = useState<boolean>(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -398,12 +395,6 @@ export default function App() {
         }
         if (storedAccentColor) setAccentColor(storedAccentColor);
         if (storedGlow !== null) setIsGlowEnabled(storedGlow);
-        if (['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'].includes(storedModel || '')) {
-          setSelectedModel(storedModel as any);
-        } else {
-          setSelectedModel('llama-3.1-8b-instant');
-          localforage.setItem('salaris_model', 'llama-3.1-8b-instant');
-        }
       } catch (error) {
         // Silently handle localforage load errors
       } finally {
@@ -425,11 +416,10 @@ export default function App() {
       localStorage.setItem('salaris_theme_mode', themeMode);
       localforage.setItem('salaris_accent', accentColor);
       localforage.setItem('salaris_glow', isGlowEnabled);
-      localforage.setItem('salaris_model', selectedModel);
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [chats, activeChatId, themeMode, accentColor, isGlowEnabled, selectedModel, isLoaded]);
+  }, [chats, activeChatId, themeMode, accentColor, isGlowEnabled, isLoaded]);
 
   // Listen for system theme changes
   useEffect(() => {
@@ -634,7 +624,6 @@ export default function App() {
     if ((!input.trim() && selectedFiles.length === 0) || isLoading) return;
 
     const userMsg = input.trim();
-    const currentThinkingMode = isThinkingMode;
     const currentFiles = [...selectedFiles];
     
     setInput('');
@@ -642,7 +631,6 @@ export default function App() {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
-    setIsThinkingMode(false);
     setIsLoading(true);
     setIsGenerating(true);
     stopGenerationRef.current = false;
@@ -671,45 +659,11 @@ export default function App() {
     try {
       const chatHistory = activeChat ? activeChat.messages : [];
       
-      const stream = generateGroqResponseStream(userMsg, selectedModel, chatHistory);
-
-      let isFirstChunk = true;
-      let currentTyped = '';
-      for await (const chunkText of stream) {
-        if (stopGenerationRef.current) break;
-        if (isFirstChunk) {
-          setIsLoading(false); // Stop showing typing indicator once we start receiving the response
-          // Add empty message first to start typing
-          setChats(prev => prev.map(chat => {
-            if (chat.id === targetChatId) {
-              return { ...chat, messages: [...chat.messages, { id: modelMessageId, role: 'model', content: '', isTyping: true }] };
-            }
-            return chat;
-          }));
-          isFirstChunk = false;
-        }
-        
-        currentTyped += chunkText;
-        setChats(prev => prev.map(chat => {
-          if (chat.id === targetChatId) {
-            return {
-              ...chat,
-              messages: chat.messages.map(m => m.id === modelMessageId ? { ...m, content: currentTyped, isTyping: true } : m)
-            };
-          }
-          return chat;
-        }));
-        if (stopGenerationRef.current) break;
-      }
-      setIsGenerating(false);
-
-      // Finish typing
+      // AI Disabled for now
+      setIsLoading(false);
       setChats(prev => prev.map(chat => {
         if (chat.id === targetChatId) {
-          return {
-            ...chat,
-            messages: chat.messages.map(m => m.id === modelMessageId ? { ...m, isTyping: false } : m)
-          };
+          return { ...chat, messages: [...chat.messages, { id: modelMessageId, role: 'model', content: 'ИИ временно отключен.', isTyping: false }] };
         }
         return chat;
       }));
@@ -765,7 +719,7 @@ export default function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [input, isLoading, activeChatId, selectedModel, isThinkingMode, chats]);
+  }, [input, isLoading, activeChatId, chats]);
 
   const handleRegenerate = useCallback(async (messageId: string) => {
     const chat = chats.find(c => c.id === activeChatId);
@@ -804,44 +758,11 @@ export default function App() {
     try {
       const chatHistory = activeChat ? activeChat.messages.slice(0, lastUserMsgIndex) : [];
       
-      const stream = generateGroqResponseStream(userMsgContent, selectedModel, chatHistory);
-
-      let isFirstChunk = true;
-      let currentTyped = '';
-      for await (const chunkText of stream) {
-        if (isFirstChunk) {
-          setIsLoading(false);
-          setChats(prev => prev.map(c => {
-            if (c.id === targetChatId) {
-              return { ...c, messages: [...c.messages, { id: modelMessageId, role: 'model', content: '', isTyping: true }] };
-            }
-            return c;
-          }));
-          isFirstChunk = false;
-        }
-        
-        const tokens = chunkText.match(/(\s+|\S+)/g) || [];
-        for (const token of tokens) {
-          currentTyped += token;
-          setChats(prev => prev.map(c => {
-            if (c.id === targetChatId) {
-              return {
-                ...c,
-                messages: c.messages.map(m => m.id === modelMessageId ? { ...m, content: currentTyped, isTyping: true } : m)
-              };
-            }
-            return c;
-          }));
-          await new Promise(resolve => setTimeout(resolve, 20 + Math.random() * 20));
-        }
-      }
-
+      // AI Disabled for now
+      setIsLoading(false);
       setChats(prev => prev.map(c => {
         if (c.id === targetChatId) {
-          return {
-            ...c,
-            messages: c.messages.map(m => m.id === modelMessageId ? { ...m, isTyping: false } : m)
-          };
+          return { ...c, messages: [...c.messages, { id: modelMessageId, role: 'model', content: 'ИИ временно отключен.', isTyping: false }] };
         }
         return c;
       }));
@@ -892,7 +813,7 @@ export default function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [chats, activeChatId, isLoading, selectedModel, isThinkingMode]);
+  }, [chats, activeChatId, isLoading]);
 
   const handleReport = useCallback((messageId?: string) => {
     if (messageId) {
@@ -942,7 +863,6 @@ export default function App() {
           message_id: reportContext?.messageId || null,
           message_text: reportContext?.text || null,
           chat_id: activeChatId || null,
-          model: selectedModel,
           created_at: new Date().toISOString()
         }
       ]);
@@ -1193,165 +1113,41 @@ export default function App() {
               {/* Action Menu Content */}
               <AnimatePresence mode="wait">
                 {isActionMenuOpen && (
-                  actionMenuView === 'main' ? (
-                    <motion.div
-                      key="main"
-                      initial={{ scale: 0, opacity: 0, z: 0 }}
-                      animate={{ 
-                        scale: isActionMenuInteracting ? 0.97 : 1, 
-                        opacity: 1,
-                        z: 0,
-                        transition: { type: "spring", damping: 25, stiffness: 300 } 
-                      }}
-                      exit={{ scale: 0, opacity: 0, z: 0, transition: { duration: 0.15, ease: "easeOut" } }}
-                      style={{ transformOrigin: '24px calc(100% - 24px)', willChange: "transform, opacity" }}
-                      className={`absolute bottom-0 left-0 z-[200] w-64 rounded-[2rem] overflow-hidden p-2 hyper-glass hyper-glass-shadow`}
-                    >
-                      <div className="flex flex-col">
-                        <motion.button
-                          onTapStart={() => setIsActionMenuInteracting(true)}
-                          onTap={() => setIsActionMenuInteracting(false)}
-                          onTapCancel={() => setIsActionMenuInteracting(false)}
-                          onClick={() => {
-                            fileInputRef.current?.click();
-                            setIsActionMenuOpen(false);
-                          }}
-                          className={`w-full flex items-center justify-between px-4 py-3 rounded-full text-sm font-medium transition-colors ${
-                            theme === 'dark' 
-                              ? 'hover:bg-white/10 active:bg-white/20 text-white' 
-                              : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <Plus className="w-4 h-4" />
-                            <span>Добавить файл</span>
-                          </div>
-                        </motion.button>
-
-                        <motion.button
-                          onTapStart={() => setIsActionMenuInteracting(true)}
-                          onTap={() => setIsActionMenuInteracting(false)}
-                          onTapCancel={() => setIsActionMenuInteracting(false)}
-                          onClick={() => {
-                            setIsThinkingMode(!isThinkingMode);
-                            setIsActionMenuOpen(false);
-                          }}
-                          className={`w-full flex items-center justify-between px-4 py-3 rounded-full text-sm font-medium transition-colors ${
-                            theme === 'dark' 
-                              ? 'hover:bg-white/10 active:bg-white/20 text-white' 
-                              : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={isThinkingMode ? getAccentClass('text') : ''}>
-                              <path d="M9 18h6" />
-                              <path d="M10 22h4" />
-                              <path d="M12 2v1" />
-                              <path d="M12 7v1" />
-                              <path d="M12 12v1" />
-                              <path d="M19 12h-1" />
-                              <path d="M14 12h-1" />
-                              <path d="M5 12h1" />
-                              <path d="M10 12h1" />
-                              <path d="M17 5l-1 1" />
-                              <path d="M13 9l-1 1" />
-                              <path d="M7 5l1 1" />
-                              <path d="M11 9l1 1" />
-                            </svg>
-                            <span className={isThinkingMode ? getAccentClass('text') : ''}>Размышление</span>
-                          </div>
-                          {isThinkingMode && <Check className={`w-4 h-4 ${getAccentClass('text')}`} />}
-                        </motion.button>
-
-                        <motion.button 
-                          onTapStart={() => setIsActionMenuInteracting(true)}
-                          onTap={() => setIsActionMenuInteracting(false)}
-                          onTapCancel={() => setIsActionMenuInteracting(false)}
-                          onClick={() => setActionMenuView('model')}
-                          className={`w-full flex items-center justify-between px-4 py-3 rounded-full text-sm font-medium transition-colors ${
-                            theme === 'dark' 
-                              ? 'hover:bg-white/10 active:bg-white/20 text-white' 
-                              : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <Brain className="w-4 h-4" />
-                            Модель
-                          </div>
-                          <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                            {selectedModel === 'llama-3.3-70b-versatile' ? 'Osmium X' : 'Osmium'}
-                          </span>
-                        </motion.button>
-
-                      </div>
-                    </motion.div>
-                  ) : (
-                    <motion.div 
-                      key="model"
-                      initial={{ scale: 0, opacity: 0, z: 0 }}
-                      animate={{ 
-                        scale: isActionMenuInteracting ? 0.97 : 1, 
-                        opacity: 1,
-                        z: 0,
-                        transition: { type: "spring", damping: 25, stiffness: 300 } 
-                      }}
-                      exit={{ scale: 0, opacity: 0, z: 0, transition: { duration: 0.15, ease: "easeOut" } }}
-                      style={{ transformOrigin: '24px calc(100% - 24px)', willChange: "transform, opacity, backdrop-filter" }}
-                      className={`absolute bottom-0 left-0 z-[200] w-64 rounded-[2rem] overflow-hidden p-2 hyper-glass hyper-glass-shadow`}
-                    >
-                      <div className="flex flex-col">
-                        <div className="flex items-center gap-2 px-2 pb-2">
-                          <motion.button 
-                            whileTap={{ scale: 0.97 }}
-                            onClick={() => setActionMenuView('main')}
-                            className={`p-2 rounded-full transition-colors ${
-                              theme === 'dark' ? 'hover:bg-white/10 text-gray-400' : 'hover:bg-black/5 text-gray-500'
-                            }`}
-                          >
-                            <ChevronLeft className="w-5 h-5" />
-                          </motion.button>
-                          <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                            Выберите модель
-                          </span>
+                  <motion.div
+                    key="main"
+                    initial={{ scale: 0, opacity: 0, z: 0 }}
+                    animate={{ 
+                      scale: isActionMenuInteracting ? 0.97 : 1, 
+                      opacity: 1,
+                      z: 0,
+                      transition: { type: "spring", damping: 25, stiffness: 300 } 
+                    }}
+                    exit={{ scale: 0, opacity: 0, z: 0, transition: { duration: 0.15, ease: "easeOut" } }}
+                    style={{ transformOrigin: '24px calc(100% - 24px)', willChange: "transform, opacity" }}
+                    className={`absolute bottom-0 left-0 z-[200] w-64 rounded-[2rem] overflow-hidden p-2 hyper-glass hyper-glass-shadow`}
+                  >
+                    <div className="flex flex-col">
+                      <motion.button
+                        onTapStart={() => setIsActionMenuInteracting(true)}
+                        onTap={() => setIsActionMenuInteracting(false)}
+                        onTapCancel={() => setIsActionMenuInteracting(false)}
+                        onClick={() => {
+                          fileInputRef.current?.click();
+                          setIsActionMenuOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between px-4 py-3 rounded-full text-sm font-medium transition-colors ${
+                          theme === 'dark' 
+                            ? 'hover:bg-white/10 active:bg-white/20 text-white' 
+                            : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Plus className="w-4 h-4" />
+                          <span>Добавить файл</span>
                         </div>
-                        
-                        <motion.button 
-                          onTapStart={() => setIsActionMenuInteracting(true)}
-                          onTap={() => setIsActionMenuInteracting(false)}
-                          onTapCancel={() => setIsActionMenuInteracting(false)}
-                          onClick={() => { setSelectedModel('llama-3.1-8b-instant'); setActionMenuView('main'); }}
-                          className={`flex flex-col items-start px-4 py-2.5 rounded-full text-sm font-medium transition-colors ${
-                            theme === 'dark' 
-                              ? 'hover:bg-white/10 active:bg-white/20 text-white' 
-                              : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between w-full">
-                            Osmium
-                            {selectedModel === 'llama-3.1-8b-instant' && <Check className="w-4 h-4" />}
-                          </div>
-                          <span className={`text-[11px] ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>Быстрый ответ</span>
-                        </motion.button>
-                        <motion.button 
-                          onTapStart={() => setIsActionMenuInteracting(true)}
-                          onTap={() => setIsActionMenuInteracting(false)}
-                          onTapCancel={() => setIsActionMenuInteracting(false)}
-                          onClick={() => { setSelectedModel('llama-3.3-70b-versatile'); setActionMenuView('main'); }}
-                          className={`flex flex-col items-start px-4 py-2.5 rounded-full text-sm font-medium transition-colors ${
-                            theme === 'dark' 
-                              ? 'hover:bg-white/10 active:bg-white/20 text-white' 
-                              : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between w-full">
-                            Osmium X
-                            {selectedModel === 'llama-3.3-70b-versatile' && <Check className="w-4 h-4" />}
-                          </div>
-                          <span className={`text-[11px] ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>Подробный ответ</span>
-                        </motion.button>
-                      </div>
-                    </motion.div>
-                  )
+                      </motion.button>
+                    </div>
+                  </motion.div>
                 )}
               </AnimatePresence>
             </div>
@@ -1372,52 +1168,8 @@ export default function App() {
               {/* Input Bar Container */}
               <div className={`relative z-10 flex flex-col rounded-[2rem] p-1.5 hyper-glass hyper-glass-shadow`}>
                 
-                {/* Top section: Pills and Image Preview */}
+                {/* Top section: Image Preview */}
                 <AnimatePresence initial={false}>
-                  {isThinkingMode && (
-                    <motion.div 
-                      key="pills-container"
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="overflow-hidden"
-                    >
-                      <div className="flex flex-wrap items-center gap-2 px-3 pt-2 pb-1.5 pointer-events-auto">
-                        <AnimatePresence>
-                          {isThinkingMode && (
-                            <motion.div 
-                              key="thinking-mode"
-                              initial={{ scale: 0.8, opacity: 0 }}
-                              animate={{ scale: 1, opacity: 1 }}
-                              exit={{ scale: 0.8, opacity: 0 }}
-                              className={`flex items-center gap-1.5 shadow-sm rounded-full px-3 py-1.5 border ${theme === 'dark' ? 'bg-[#2a2a2a] border-white/10' : 'bg-white border-gray-100'}`}
-                            >
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={getAccentClass('text')}>
-                                <path d="M9 18h6" />
-                                <path d="M10 22h4" />
-                                <path d="M12 2v1" />
-                                <path d="M12 7v1" />
-                                <path d="M12 12v1" />
-                                <path d="M19 12h-1" />
-                                <path d="M14 12h-1" />
-                                <path d="M5 12h1" />
-                                <path d="M10 12h1" />
-                                <path d="M17 5l-1 1" />
-                                <path d="M13 9l-1 1" />
-                                <path d="M7 5l1 1" />
-                                <path d="M11 9l1 1" />
-                              </svg>
-                              <span className={`text-[13px] font-medium ${getAccentClass('text')}`}>Размышление</span>
-                              <button onClick={() => setIsThinkingMode(false)} className={`ml-1 ${getAccentClass('text')} hover:opacity-70 transition-opacity`}>
-                                <X className="w-3.5 h-3.5" />
-                              </button>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-                    </motion.div>
-                  )}
                 </AnimatePresence>
 
                 <div className="flex items-end gap-2 w-full">
