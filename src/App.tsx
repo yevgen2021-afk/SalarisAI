@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import localforage from 'localforage';
-import { ArrowUp, Menu, Settings, Moon, Sun, Trash2, Info, X, SquarePen, Plus, Paintbrush, ChevronLeft, Check, Square, Brain, Flag, User, LogOut, Camera, Loader2 } from 'lucide-react';
+import { ArrowUp, Menu, Settings, Trash2, Info, X, SquarePen, Plus, Paintbrush, ChevronLeft, Check, Square, Brain, Flag, User, LogOut, Camera, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Chat, Message } from './types';
 import { generateGroqResponseStream } from './services/groq';
@@ -38,7 +38,20 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [theme, setTheme] = useState<'dark' | 'light'>('light');
+  const [themeMode, setThemeMode] = useState<'system' | 'dark' | 'light'>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('salaris_theme_mode');
+      if (stored === 'system' || stored === 'dark' || stored === 'light') return stored;
+    }
+    return 'system';
+  });
+  const [systemTheme, setSystemTheme] = useState<'dark' | 'light'>(() => {
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    return 'light';
+  });
+  const theme = themeMode === 'system' ? systemTheme : themeMode;
   const [accentColor, setAccentColor] = useState<string>('laguna');
   const [isGlowEnabled, setIsGlowEnabled] = useState<boolean>(true);
 
@@ -79,6 +92,9 @@ export default function App() {
         // Проверяем, существует ли еще пользователь в auth
         const { data: { user: verifiedUser }, error: userError } = await supabase.auth.getUser();
         if (userError || !verifiedUser) {
+          if (userError?.message?.includes('Lock was stolen')) {
+            return; // Ignore lock stolen errors
+          }
           console.error('User no longer exists. Signing out...');
           supabase.auth.signOut().catch(() => {});
           setUser(null);
@@ -89,6 +105,9 @@ export default function App() {
         console.warn('Access denied or invalid token. Verifying user existence...');
         const { data: { user: verifiedUser }, error: userError } = await supabase.auth.getUser();
         if (userError || !verifiedUser) {
+          if (userError?.message?.includes('Lock was stolen')) {
+            return; // Ignore lock stolen errors
+          }
           supabase.auth.signOut().catch(() => {});
           setUser(null);
           setProfile(null);
@@ -173,7 +192,6 @@ export default function App() {
   };
 
   const handleDeleteAccount = async () => {
-    console.log('handleDeleteAccount called', { hasSupabase: !!supabase, hasUser: !!user });
     if (!supabase || !user) {
       alert('Ошибка: Supabase или пользователь не инициализированы. Проверьте подключение.');
       return;
@@ -184,7 +202,6 @@ export default function App() {
 
     setIsLoading(true);
     try {
-      console.log('Calling RPC delete_user...');
       // Вызываем функцию удаления через RPC
       const { error } = await supabase.rpc('delete_user');
       if (error) {
@@ -192,7 +209,6 @@ export default function App() {
         throw error;
       }
 
-      console.log('RPC success, signing out...');
       // После удаления выходим из сессии
       await supabase.auth.signOut();
       setUser(null);
@@ -233,10 +249,6 @@ export default function App() {
   const [isGenerating, setIsGenerating] = useState(false);
   const stopGenerationRef = useRef<boolean>(false);
 
-  useEffect(() => {
-    console.log('Auth State:', { isLoaded, isAuthReady, user: user?.email, hasSupabase: !!supabase });
-  }, [isLoaded, isAuthReady, user]);
-
   const [reportContext, setReportContext] = useState<{ messageId?: string, text?: string, type: 'report' | 'like' | 'dislike' } | null>(null);
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
 
@@ -256,6 +268,9 @@ export default function App() {
         const { data: { user: verifiedUser }, error: authError } = await supabase.auth.getUser();
         
         if (authError || !verifiedUser) {
+          if (authError?.message?.includes('Lock was stolen')) {
+            return; // Ignore lock stolen errors in background checks
+          }
           console.warn('User session invalid or user deleted externally. Signing out...');
           supabase.auth.signOut().catch(() => {});
           setUser(null);
@@ -276,10 +291,7 @@ export default function App() {
           return;
         }
         
-        console.log('Current ban status from DB:', profileData?.is_banned);
-        
         if (profileData?.is_banned === true) {
-          console.log('User is banned, showing blocked screen');
           setIsBanned(true);
         } else {
           setIsBanned(false);
@@ -301,7 +313,17 @@ export default function App() {
       supabase.auth.getUser().then(({ data: { user: initialUser }, error }) => {
         if (error || !initialUser) {
           if (error && error.message !== 'Auth session missing!') {
-            console.error('Initial auth check error:', error.message);
+            if (error.message.includes('Lock was stolen')) {
+              console.warn('Initial auth check warning: Lock was stolen by another request (safe to ignore)');
+              // Fallback to getSession to avoid logging out the user incorrectly
+              supabase.auth.getSession().then(({ data: { session } }) => {
+                setUser(session?.user ?? null);
+                setIsAuthReady(true);
+              });
+              return;
+            } else {
+              console.error('Initial auth check error:', error.message);
+            }
             if (error.message === 'Load failed') {
               console.error('Network error: Supabase auth request failed (Load failed).');
             }
@@ -312,7 +334,11 @@ export default function App() {
         }
         setIsAuthReady(true);
       }).catch((err) => {
-        console.error('Auth check promise rejected:', err);
+        if (err?.message?.includes('Lock was stolen') || String(err).includes('Lock was stolen')) {
+          console.warn('Auth check promise rejected: Lock was stolen by another request (safe to ignore)');
+        } else {
+          console.error('Auth check promise rejected:', err);
+        }
         setIsAuthReady(true);
       });
 
@@ -337,7 +363,7 @@ export default function App() {
       try {
         const storedChats = await localforage.getItem<Chat[]>('salaris_chats');
         const storedActiveChatId = await localforage.getItem<string>('salaris_active_chat');
-        const storedTheme = await localforage.getItem<'dark' | 'light'>('salaris_theme');
+        const legacyTheme = await localforage.getItem<'dark' | 'light'>('salaris_theme');
         const storedAccentColor = await localforage.getItem<string>('salaris_accent');
         const storedGlow = await localforage.getItem<boolean>('salaris_glow');
         const storedModel = await localforage.getItem<string>('salaris_model');
@@ -365,7 +391,11 @@ export default function App() {
           setActiveChatId(newChat.id);
         }
 
-        if (storedTheme) setTheme(storedTheme);
+        if (legacyTheme) {
+          setThemeMode(legacyTheme);
+          localStorage.setItem('salaris_theme_mode', legacyTheme);
+          localforage.removeItem('salaris_theme');
+        }
         if (storedAccentColor) setAccentColor(storedAccentColor);
         if (storedGlow !== null) setIsGlowEnabled(storedGlow);
         if (['llama-3.3-70b-versatile', 'meta-llama/llama-4-scout-17b-16e-instruct'].includes(storedModel || '')) {
@@ -391,14 +421,25 @@ export default function App() {
     const timer = setTimeout(() => {
       localforage.setItem('salaris_chats', chats);
       localforage.setItem('salaris_active_chat', activeChatId);
-      localforage.setItem('salaris_theme', theme);
+      localforage.setItem('salaris_theme_mode', themeMode);
+      localStorage.setItem('salaris_theme_mode', themeMode);
       localforage.setItem('salaris_accent', accentColor);
       localforage.setItem('salaris_glow', isGlowEnabled);
       localforage.setItem('salaris_model', selectedModel);
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [chats, activeChatId, theme, accentColor, isGlowEnabled, selectedModel, isLoaded]);
+  }, [chats, activeChatId, themeMode, accentColor, isGlowEnabled, selectedModel, isLoaded]);
+
+  // Listen for system theme changes
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (e: MediaQueryListEvent) => {
+      setSystemTheme(e.matches ? 'dark' : 'light');
+    };
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
 
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
@@ -493,7 +534,7 @@ export default function App() {
   }, [accentColor]);
 
   const toggleTheme = useCallback(() => {
-    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+    setThemeMode(prev => prev === 'dark' ? 'light' : 'dark');
   }, []);
 
   const handleScroll = useCallback(() => {
@@ -1115,7 +1156,7 @@ export default function App() {
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.15 }}
                     onClick={() => setIsActionMenuOpen(false)}
-                    className="fixed inset-0 z-[190] bg-black/10 backdrop-blur-[2px] pointer-events-auto"
+                    className="fixed inset-0 z-[190] bg-black/20 pointer-events-auto"
                   />
                 )}
               </AnimatePresence>
@@ -1255,7 +1296,7 @@ export default function App() {
                       }}
                       exit={{ scale: 0, opacity: 0, z: 0, transition: { duration: 0.15, ease: "easeOut" } }}
                       style={{ transformOrigin: '24px calc(100% - 24px)', willChange: "transform, opacity" }}
-                      className={`absolute bottom-0 left-0 z-[200] w-64 rounded-[2rem] overflow-hidden shadow-[0_16px_40px_rgba(0,0,0,0.2)] border p-2 backdrop-blur-xl ${
+                      className={`absolute bottom-0 left-0 z-[200] w-64 rounded-[2rem] overflow-hidden shadow-[0_16px_40px_rgba(0,0,0,0.2)] border p-2 backdrop-blur-md ${
                         theme === 'dark' 
                           ? 'bg-white/10 border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]' 
                           : 'bg-white/60 border-white/40 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]'
@@ -1466,7 +1507,7 @@ export default function App() {
               exit={{ opacity: 0 }}
               onClick={() => setEditingChatId(null)}
               style={{ willChange: "opacity" }}
-              className="absolute inset-0 bg-black/10 backdrop-blur-[2px]"
+              className="absolute inset-0 bg-black/20"
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
@@ -1478,7 +1519,7 @@ export default function App() {
                 theme === 'dark' 
                   ? 'bg-white/10 border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]' 
                   : 'bg-white/60 border-white/40 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]'
-              } backdrop-blur-xl`}
+              } backdrop-blur-md`}
             >
               <div className="p-6">
                 <h3 className={`text-lg font-semibold mb-4 text-left ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
@@ -1536,7 +1577,7 @@ export default function App() {
               exit={{ opacity: 0 }}
               onClick={() => setIsDeleteConfirmOpen(false)}
               style={{ willChange: "opacity" }}
-              className="absolute inset-0 bg-black/10 backdrop-blur-[2px]"
+              className="absolute inset-0 bg-black/20"
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
@@ -1548,7 +1589,7 @@ export default function App() {
                 theme === 'dark' 
                   ? 'bg-white/10 border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]' 
                   : 'bg-white/60 border-white/40 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]'
-              } backdrop-blur-xl`}
+              } backdrop-blur-md`}
             >
               <div className="p-6">
                 <h3 className={`text-lg font-semibold mb-2 text-left ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
@@ -1592,7 +1633,7 @@ export default function App() {
             transition={{ duration: 0.15 }}
             onClick={() => setIsSettingsOpen(false)}
             style={{ willChange: "opacity" }}
-            className="fixed inset-0 z-[200] bg-black/10 backdrop-blur-[2px]"
+            className="fixed inset-0 z-[200] bg-black/20"
           />
         )}
       </AnimatePresence>
@@ -1945,28 +1986,28 @@ export default function App() {
                     )}
                   </AnimatePresence>
 
-                  {/* Dark Theme Toggle */}
+                  {/* System Theme Toggle */}
                   <motion.button 
                     whileTap={{ scale: 0.97 }}
                     onTapStart={() => setIsSettingsInteracting(true)}
                     onTap={() => setIsSettingsInteracting(false)}
                     onTapCancel={() => setIsSettingsInteracting(false)}
-                    onClick={toggleTheme}
+                    onClick={() => setThemeMode(prev => prev === 'system' ? systemTheme : 'system')}
                     className={`w-full rounded-full px-4 py-3 flex items-center justify-between transition-colors cursor-pointer ${
                       theme === 'dark' ? 'hover:bg-white/5 active:bg-white/10' : 'hover:bg-black/5 active:bg-black/10'
                     }`}
                   >
                     <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                      Темная тема
+                      Системная тема
                     </span>
                     <div
                       className={`w-10 h-6 rounded-full transition-colors relative flex items-center ${
-                        theme === 'dark' ? getAccentClass('bg') : 'bg-gray-300'
+                        themeMode === 'system' ? getAccentClass('bg') : 'bg-gray-300'
                       }`}
                     >
                       <motion.div 
                         animate={{ 
-                          x: theme === 'dark' ? 20 : 4,
+                          x: themeMode === 'system' ? 20 : 4,
                           width: 16,
                           backgroundColor: "rgba(255,255,255,1)",
                           backdropFilter: "blur(0px)"
@@ -1976,6 +2017,45 @@ export default function App() {
                       />
                     </div>
                   </motion.button>
+
+                  {/* Dark Theme Toggle */}
+                  <AnimatePresence>
+                    {themeMode !== 'system' && (
+                      <motion.button 
+                        initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                        animate={{ opacity: 1, height: 'auto', marginTop: 8 }}
+                        exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                        whileTap={{ scale: 0.97 }}
+                        onTapStart={() => setIsSettingsInteracting(true)}
+                        onTap={() => setIsSettingsInteracting(false)}
+                        onTapCancel={() => setIsSettingsInteracting(false)}
+                        onClick={toggleTheme}
+                        className={`w-full rounded-full px-4 py-3 flex items-center justify-between transition-colors cursor-pointer overflow-hidden ${
+                          theme === 'dark' ? 'hover:bg-white/5 active:bg-white/10' : 'hover:bg-black/5 active:bg-black/10'
+                        }`}
+                      >
+                        <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                          Темная тема
+                        </span>
+                        <div
+                          className={`w-10 h-6 rounded-full transition-colors relative flex items-center ${
+                            theme === 'dark' ? getAccentClass('bg') : 'bg-gray-300'
+                          }`}
+                        >
+                          <motion.div 
+                            animate={{ 
+                              x: theme === 'dark' ? 20 : 4,
+                              width: 16,
+                              backgroundColor: "rgba(255,255,255,1)",
+                              backdropFilter: "blur(0px)"
+                            }}
+                            transition={{ type: "spring", damping: 20, stiffness: 300 }}
+                            className="absolute left-0 h-4 rounded-full shadow-sm"
+                          />
+                        </div>
+                      </motion.button>
+                    )}
+                  </AnimatePresence>
 
                   {/* Glow Toggle */}
                   <motion.button 
@@ -2051,7 +2131,7 @@ export default function App() {
                     Версия
                   </span>
                   <span className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>
-                    1.1
+                    1.2
                   </span>
                 </div>
 

@@ -62,7 +62,7 @@ export default function ReportModal({ isOpen, onClose, onSubmit, theme, isSubmit
             exit={{ opacity: 0 }}
             onClick={onClose}
             style={{ willChange: "opacity" }}
-            className="absolute inset-0 bg-black/10 backdrop-blur-[2px]"
+            className="absolute inset-0 bg-black/20"
           />
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
