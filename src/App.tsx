@@ -184,7 +184,7 @@ export default function App() {
     } catch (error: any) {
       console.error('Avatar upload error:', error);
       if (error.message === 'Load failed') {
-        alert('Ошибка сети при загрузке аватара. Проверьте соединение.');
+        alert('Ошибка сети при загрузке аватара. Это может быть вызвано блокировщиком рекламы или неверным URL Supabase.');
       } else {
         alert('Ошибка при загрузке аватара: ' + error.message);
       }
@@ -325,7 +325,7 @@ export default function App() {
               console.error('Initial auth check error:', error.message);
             }
             if (error.message === 'Load failed') {
-              console.error('Network error: Supabase auth request failed (Load failed).');
+              console.error('Network error: Supabase auth request failed (Load failed). This usually means the Supabase URL is incorrect or blocked by your network/browser.');
             }
           }
           setUser(null);

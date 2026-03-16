@@ -19,9 +19,9 @@ export const generateGroqResponseStream = async function*(
 ) {
   const apiKey = getGroqApiKey();
   
-  if (!apiKey) {
-    throw new Error('API key is missing. Please configure VITE_GROQ_API_KEY in your environment variables.');
-  }
+  // We check for apiKey but don't strictly block if it's missing on client, 
+  // as the server proxy might have it.
+  // However, if the server doesn't have it either, it will return a 500.
 
   const messages = [
     { role: 'system', content: SYSTEM_INSTRUCTION },
@@ -34,10 +34,10 @@ export const generateGroqResponseStream = async function*(
 
   let response;
   try {
-    response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    // Use local proxy to avoid CORS and "Load failed" errors in browser
+    response = await fetch('/api/groq', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -51,9 +51,9 @@ export const generateGroqResponseStream = async function*(
   } catch (e: any) {
     console.error('Groq fetch error:', e);
     if (e.message === 'Load failed') {
-      throw new Error('Groq API request failed (Load failed). This usually means the request was blocked by a browser extension or network policy.');
+      throw new Error('Groq API request failed (Load failed). This usually means the request was blocked by a browser extension or network policy. We tried to use a proxy, but the connection still failed.');
     }
-    throw new Error(`Failed to connect to Groq API: ${e.message}`);
+    throw new Error(`Failed to connect to Groq API (via proxy): ${e.message}`);
   }
 
   if (!response.ok) {
