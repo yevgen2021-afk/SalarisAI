@@ -48,8 +48,8 @@ const Sidebar = React.memo(({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setIsSidebarOpen(false)}
-            style={{ willChange: "opacity" }}
-            className="fixed inset-0 z-[90] bg-black/20"
+            style={{ willChange: "opacity, backdrop-filter" }}
+            className="fixed inset-0 z-[90] bg-black/20 backdrop-blur-[2px]"
           />
         )}
       </AnimatePresence>

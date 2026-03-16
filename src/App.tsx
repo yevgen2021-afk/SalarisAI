@@ -1156,7 +1156,8 @@ export default function App() {
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.15 }}
                     onClick={() => setIsActionMenuOpen(false)}
-                    className="fixed inset-0 z-[190] bg-black/20 pointer-events-auto"
+                    className="fixed inset-0 z-[190] bg-black/20 backdrop-blur-[2px] pointer-events-auto"
+                    style={{ willChange: "backdrop-filter" }}
                   />
                 )}
               </AnimatePresence>
@@ -1295,8 +1296,8 @@ export default function App() {
                         transition: { type: "spring", damping: 25, stiffness: 300 } 
                       }}
                       exit={{ scale: 0, opacity: 0, z: 0, transition: { duration: 0.15, ease: "easeOut" } }}
-                      style={{ transformOrigin: '24px calc(100% - 24px)', willChange: "transform, opacity" }}
-                      className={`absolute bottom-0 left-0 z-[200] w-64 rounded-[2rem] overflow-hidden shadow-[0_16px_40px_rgba(0,0,0,0.2)] border p-2 backdrop-blur-md ${
+                      style={{ transformOrigin: '24px calc(100% - 24px)', willChange: "transform, opacity, backdrop-filter" }}
+                      className={`absolute bottom-0 left-0 z-[200] w-64 rounded-[2rem] overflow-hidden shadow-[0_16px_40px_rgba(0,0,0,0.2)] border p-2 backdrop-blur-xl ${
                         theme === 'dark' 
                           ? 'bg-white/10 border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]' 
                           : 'bg-white/60 border-white/40 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]'
@@ -1506,20 +1507,20 @@ export default function App() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setEditingChatId(null)}
-              style={{ willChange: "opacity" }}
-              className="absolute inset-0 bg-black/20"
+              style={{ willChange: "opacity, backdrop-filter" }}
+              className="absolute inset-0 bg-black/20 backdrop-blur-[2px]"
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
               transition={{ type: "spring", damping: 25, stiffness: 500, mass: 0.8 }}
-              style={{ willChange: "transform, opacity" }}
+              style={{ willChange: "transform, opacity, backdrop-filter" }}
               className={`relative w-full max-w-[300px] rounded-[2rem] overflow-hidden shadow-[0_16px_40px_rgba(0,0,0,0.2)] border ${
                 theme === 'dark' 
                   ? 'bg-white/10 border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]' 
                   : 'bg-white/60 border-white/40 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]'
-              } backdrop-blur-md`}
+              } backdrop-blur-xl`}
             >
               <div className="p-6">
                 <h3 className={`text-lg font-semibold mb-4 text-left ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
@@ -1576,20 +1577,20 @@ export default function App() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsDeleteConfirmOpen(false)}
-              style={{ willChange: "opacity" }}
-              className="absolute inset-0 bg-black/20"
+              style={{ willChange: "opacity, backdrop-filter" }}
+              className="absolute inset-0 bg-black/20 backdrop-blur-[2px]"
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
               transition={{ type: "spring", damping: 25, stiffness: 500, mass: 0.8 }}
-              style={{ willChange: "transform, opacity" }}
+              style={{ willChange: "transform, opacity, backdrop-filter" }}
               className={`relative w-full max-w-[300px] rounded-[2rem] overflow-hidden shadow-[0_16px_40px_rgba(0,0,0,0.2)] border ${
                 theme === 'dark' 
                   ? 'bg-white/10 border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]' 
                   : 'bg-white/60 border-white/40 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]'
-              } backdrop-blur-md`}
+              } backdrop-blur-xl`}
             >
               <div className="p-6">
                 <h3 className={`text-lg font-semibold mb-2 text-left ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
@@ -1632,8 +1633,8 @@ export default function App() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
             onClick={() => setIsSettingsOpen(false)}
-            style={{ willChange: "opacity" }}
-            className="fixed inset-0 z-[200] bg-black/20"
+            style={{ willChange: "opacity, backdrop-filter" }}
+            className="fixed inset-0 z-[200] bg-black/20 backdrop-blur-[2px]"
           />
         )}
       </AnimatePresence>
