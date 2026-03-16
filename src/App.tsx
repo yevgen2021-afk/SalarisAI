@@ -10,6 +10,7 @@ import AuthScreen from './components/AuthScreen';
 import BlockedScreen from './components/BlockedScreen';
 import ReportModal from './components/ReportModal';
 import { supabase } from './lib/supabase';
+import { getGroqChatCompletion } from './services/groq';
 
 const createNewChat = (): Chat => ({
   id: Date.now().toString(),
@@ -29,6 +30,11 @@ const ACCENT_COLORS = [
 
 export default function App() {
   const [isLoaded, setIsLoaded] = useState(false);
+  const [selectedModel, setSelectedModel] = useState('llama-3.1-8b-instant');
+  const [isThinkingMode, setIsThinkingMode] = useState(false);
+  const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
+  const [isActionMenuInteracting, setIsActionMenuInteracting] = useState(false);
+  const [actionMenuView, setActionMenuView] = useState<'main' | 'model'>('main');
   const [chats, setChats] = useState<Chat[]>([createNewChat()]);
   const [activeChatId, setActiveChatId] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -238,9 +244,6 @@ export default function App() {
   };
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   
-  const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
-  const [isActionMenuInteracting, setIsActionMenuInteracting] = useState(false);
-  const [actionMenuView, setActionMenuView] = useState<'main' | 'model'>('main');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -656,14 +659,35 @@ export default function App() {
     const targetChatId = activeChatId;
     const modelMessageId = (Date.now() + 1).toString();
 
+    // Prepare the message history including the new user message
+    const updatedMessages = [...(activeChat?.messages || []), userMessage];
+
     try {
-      const chatHistory = activeChat ? activeChat.messages : [];
-      
-      // AI Disabled for now
-      setIsLoading(false);
+      // Add empty AI message
       setChats(prev => prev.map(chat => {
         if (chat.id === targetChatId) {
-          return { ...chat, messages: [...chat.messages, { id: modelMessageId, role: 'model', content: 'ИИ временно отключен.', isTyping: false }] };
+          return { ...chat, messages: [...updatedMessages, { id: modelMessageId, role: 'model', content: '', isTyping: true }] };
+        }
+        return chat;
+      }));
+
+      // Call Groq with the updated history
+      const stream = await getGroqChatCompletion(updatedMessages, selectedModel, isThinkingMode);
+      let fullContent = '';
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content || '';
+        fullContent += content;
+        setChats(prev => prev.map(chat => {
+          if (chat.id === targetChatId) {
+            return { ...chat, messages: chat.messages.map(m => m.id === modelMessageId ? { ...m, content: fullContent } : m) };
+          }
+          return chat;
+        }));
+      }
+
+      setChats(prev => prev.map(chat => {
+        if (chat.id === targetChatId) {
+          return { ...chat, messages: chat.messages.map(m => m.id === modelMessageId ? { ...m, isTyping: false } : m) };
         }
         return chat;
       }));
@@ -758,11 +782,31 @@ export default function App() {
     try {
       const chatHistory = activeChat ? activeChat.messages.slice(0, lastUserMsgIndex) : [];
       
-      // AI Disabled for now
-      setIsLoading(false);
+      // Add empty AI message
       setChats(prev => prev.map(c => {
         if (c.id === targetChatId) {
-          return { ...c, messages: [...c.messages, { id: modelMessageId, role: 'model', content: 'ИИ временно отключен.', isTyping: false }] };
+          return { ...c, messages: [...c.messages, { id: modelMessageId, role: 'model', content: '', isTyping: true }] };
+        }
+        return c;
+      }));
+
+      // Call Groq
+      const stream = await getGroqChatCompletion(chatHistory, selectedModel, isThinkingMode);
+      let fullContent = '';
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content || '';
+        fullContent += content;
+        setChats(prev => prev.map(c => {
+          if (c.id === targetChatId) {
+            return { ...c, messages: c.messages.map(m => m.id === modelMessageId ? { ...m, content: fullContent } : m) };
+          }
+          return c;
+        }));
+      }
+
+      setChats(prev => prev.map(c => {
+        if (c.id === targetChatId) {
+          return { ...c, messages: c.messages.map(m => m.id === modelMessageId ? { ...m, isTyping: false } : m) };
         }
         return c;
       }));
@@ -1114,39 +1158,79 @@ export default function App() {
               <AnimatePresence mode="wait">
                 {isActionMenuOpen && (
                   <motion.div
-                    key="main"
-                    initial={{ scale: 0, opacity: 0, z: 0 }}
+                    key={actionMenuView}
+                    initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ 
                       scale: isActionMenuInteracting ? 0.97 : 1, 
                       opacity: 1,
-                      z: 0,
                       transition: { type: "spring", damping: 25, stiffness: 300 } 
                     }}
-                    exit={{ scale: 0, opacity: 0, z: 0, transition: { duration: 0.15, ease: "easeOut" } }}
+                    exit={{ scale: 0.9, opacity: 0, transition: { duration: 0.15, ease: "easeOut" } }}
                     style={{ transformOrigin: '24px calc(100% - 24px)', willChange: "transform, opacity" }}
                     className={`absolute bottom-0 left-0 z-[200] w-64 rounded-[2rem] overflow-hidden p-2 hyper-glass hyper-glass-shadow`}
                   >
-                    <div className="flex flex-col">
-                      <motion.button
-                        onTapStart={() => setIsActionMenuInteracting(true)}
-                        onTap={() => setIsActionMenuInteracting(false)}
-                        onTapCancel={() => setIsActionMenuInteracting(false)}
-                        onClick={() => {
-                          fileInputRef.current?.click();
-                          setIsActionMenuOpen(false);
-                        }}
-                        className={`w-full flex items-center justify-between px-4 py-3 rounded-full text-sm font-medium transition-colors ${
-                          theme === 'dark' 
-                            ? 'hover:bg-white/10 active:bg-white/20 text-white' 
-                            : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <Plus className="w-4 h-4" />
-                          <span>Добавить файл</span>
-                        </div>
-                      </motion.button>
-                    </div>
+                    {actionMenuView === 'main' ? (
+                      <div className="flex flex-col">
+                        <motion.button
+                          onTapStart={() => setIsActionMenuInteracting(true)}
+                          onTap={() => setIsActionMenuInteracting(false)}
+                          onTapCancel={() => setIsActionMenuInteracting(false)}
+                          onClick={() => {
+                            fileInputRef.current?.click();
+                            setIsActionMenuOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between px-4 py-3 rounded-full text-sm font-medium transition-colors ${
+                            theme === 'dark' 
+                              ? 'hover:bg-white/10 active:bg-white/20 text-white' 
+                              : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <Plus className="w-4 h-4" />
+                            <span>Добавить файл</span>
+                          </div>
+                        </motion.button>
+                        <motion.button
+                          onTapStart={() => setIsActionMenuInteracting(true)}
+                          onTap={() => setIsActionMenuInteracting(false)}
+                          onTapCancel={() => setIsActionMenuInteracting(false)}
+                          onClick={() => setActionMenuView('model')}
+                          className={`w-full flex items-center justify-between px-4 py-3 rounded-full text-sm font-medium transition-colors ${
+                            theme === 'dark' 
+                              ? 'hover:bg-white/10 active:bg-white/20 text-white' 
+                              : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="w-4 h-4 flex items-center justify-center">🤖</span>
+                            <span>{selectedModel}</span>
+                          </div>
+                        </motion.button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col">
+                        <div className="px-4 py-2 text-xs font-semibold opacity-50 uppercase tracking-wider">Выберите модель</div>
+                        {['llama-3.1-8b-instant', 'llama-3.1-70b-versatile', 'mixtral-8x7b-32768'].map((model) => (
+                          <motion.button
+                            key={model}
+                            onTapStart={() => setIsActionMenuInteracting(true)}
+                            onTap={() => setIsActionMenuInteracting(false)}
+                            onTapCancel={() => setIsActionMenuInteracting(false)}
+                            onClick={() => {
+                              setSelectedModel(model);
+                              setActionMenuView('main');
+                            }}
+                            className={`w-full flex items-center justify-between px-4 py-3 rounded-full text-sm font-medium transition-colors ${
+                              selectedModel === model
+                                ? (theme === 'dark' ? 'bg-white/10 text-white' : 'bg-black/5 text-gray-900')
+                                : (theme === 'dark' ? 'hover:bg-white/5 text-white/70' : 'hover:bg-black/5 text-gray-600')
+                            }`}
+                          >
+                            <span>{model}</span>
+                          </motion.button>
+                        ))}
+                      </div>
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
