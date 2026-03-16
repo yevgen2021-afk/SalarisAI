@@ -11,7 +11,6 @@ import AuthScreen from './components/AuthScreen';
 import BlockedScreen from './components/BlockedScreen';
 import ReportModal from './components/ReportModal';
 import { supabase } from './lib/supabase';
-import { useTelegram } from './hooks/useTelegram';
 
 const createNewChat = (): Chat => ({
   id: Date.now().toString(),
@@ -30,7 +29,6 @@ const ACCENT_COLORS = [
 ];
 
 export default function App() {
-  const { theme: telegramTheme } = useTelegram();
   const [isLoaded, setIsLoaded] = useState(false);
   const [chats, setChats] = useState<Chat[]>([createNewChat()]);
   const [activeChatId, setActiveChatId] = useState<string>('');
@@ -41,12 +39,6 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>('light');
-
-  useEffect(() => {
-    if (telegramTheme) {
-      setTheme(telegramTheme);
-    }
-  }, [telegramTheme]);
   const [accentColor, setAccentColor] = useState<string>('laguna');
   const [isGlowEnabled, setIsGlowEnabled] = useState<boolean>(true);
 
