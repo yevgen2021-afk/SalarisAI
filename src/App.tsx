@@ -1297,11 +1297,7 @@ export default function App() {
                       }}
                       exit={{ scale: 0, opacity: 0, z: 0, transition: { duration: 0.15, ease: "easeOut" } }}
                       style={{ transformOrigin: '24px calc(100% - 24px)', willChange: "transform, opacity, backdrop-filter" }}
-                      className={`absolute bottom-0 left-0 z-[200] w-64 rounded-[2rem] overflow-hidden shadow-[0_16px_40px_rgba(0,0,0,0.2)] border p-2 backdrop-blur-xl ${
-                        theme === 'dark' 
-                          ? 'bg-white/10 border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]' 
-                          : 'bg-white/60 border-white/40 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]'
-                      }`}
+                      className={`absolute bottom-0 left-0 z-[200] w-64 rounded-[2rem] overflow-hidden p-2 hyper-glass hyper-glass-shadow`}
                     >
                       <div className="flex flex-col">
                         <div className="flex items-center gap-2 px-2 pb-2">
@@ -1516,11 +1512,7 @@ export default function App() {
               exit={{ opacity: 0, scale: 0.9 }}
               transition={{ type: "spring", damping: 25, stiffness: 500, mass: 0.8 }}
               style={{ willChange: "transform, opacity, backdrop-filter" }}
-              className={`relative w-full max-w-[300px] rounded-[2rem] overflow-hidden shadow-[0_16px_40px_rgba(0,0,0,0.2)] border ${
-                theme === 'dark' 
-                  ? 'bg-white/10 border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]' 
-                  : 'bg-white/60 border-white/40 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]'
-              } backdrop-blur-xl`}
+              className={`relative w-full max-w-[300px] rounded-[2rem] overflow-hidden p-2 hyper-glass hyper-glass-shadow`}
             >
               <div className="p-6">
                 <h3 className={`text-lg font-semibold mb-4 text-left ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
@@ -1586,11 +1578,7 @@ export default function App() {
               exit={{ opacity: 0, scale: 0.9 }}
               transition={{ type: "spring", damping: 25, stiffness: 500, mass: 0.8 }}
               style={{ willChange: "transform, opacity, backdrop-filter" }}
-              className={`relative w-full max-w-[300px] rounded-[2rem] overflow-hidden shadow-[0_16px_40px_rgba(0,0,0,0.2)] border ${
-                theme === 'dark' 
-                  ? 'bg-white/10 border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]' 
-                  : 'bg-white/60 border-white/40 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]'
-              } backdrop-blur-xl`}
+              className={`relative w-full max-w-[300px] rounded-[2rem] overflow-hidden p-2 hyper-glass hyper-glass-shadow`}
             >
               <div className="p-6">
                 <h3 className={`text-lg font-semibold mb-2 text-left ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
