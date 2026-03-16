@@ -44,17 +44,17 @@
 }
 
 .glass-panel {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
 }
 
 .light .glass-panel {
-  background: rgba(255, 255, 255, 0.75);
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.08);
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
 }
 
 .liquid-glass {
@@ -63,6 +63,7 @@
   position: relative;
   overflow: hidden;
   transform: translateZ(0);
+  will-change: transform;
 }
 
 .liquid-glass::before {
@@ -77,46 +78,35 @@
 }
 
 .dark .liquid-glass {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 25px 60px rgba(15, 23, 42, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  background: rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 25px 60px rgba(15, 23, 42, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 .light .liquid-glass {
-  background: rgba(255, 255, 255, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  box-shadow: 0 25px 60px rgba(15, 23, 42, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 25px 60px rgba(15, 23, 42, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 
 .hyper-glass {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
   backdrop-filter: blur(24px) saturate(160%);
   -webkit-backdrop-filter: blur(24px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  transform: translateZ(0);
-  isolation: isolate;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .light .hyper-glass {
-  background: rgba(255, 255, 255, 0.75);
-  border: 1px solid rgba(0, 0, 0, 0.08);
-}
-
-@supports not (backdrop-filter: blur(1px)) {
-  .hyper-glass {
-    background: rgba(20, 20, 20, 0.92);
-  }
-  .light .hyper-glass {
-    background: rgba(255, 255, 255, 0.95);
-  }
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .hyper-glass-shadow {
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
 }
 
 .light .hyper-glass-shadow {
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
 }
 
 /* Custom scrollbar */

@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import localforage from 'localforage';
-import { ArrowUp, Menu, Settings, Trash2, Info, X, SquarePen, Plus, Paintbrush, ChevronLeft, Check, Square, Brain, Flag, User, LogOut, Camera, Loader2 } from 'lucide-react';
+import { ArrowUp, Menu, Settings, Moon, Sun, Trash2, Info, X, SquarePen, Plus, Paintbrush, ChevronLeft, Check, Square, Brain, Flag, User, LogOut, Camera, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Chat, Message } from './types';
+import { generateGroqResponseStream } from './services/groq';
 import ChatMessage from './components/ChatMessage';
 import Dashboard from './components/Dashboard';
 import Sidebar from './components/Sidebar';
@@ -10,7 +11,7 @@ import AuthScreen from './components/AuthScreen';
 import BlockedScreen from './components/BlockedScreen';
 import ReportModal from './components/ReportModal';
 import { supabase } from './lib/supabase';
-import { getGroqChatCompletion } from './services/groq';
+import { useTelegram } from './hooks/useTelegram';
 
 const createNewChat = (): Chat => ({
   id: Date.now().toString(),
@@ -29,12 +30,8 @@ const ACCENT_COLORS = [
 ];
 
 export default function App() {
+  const { theme: telegramTheme } = useTelegram();
   const [isLoaded, setIsLoaded] = useState(false);
-  const [selectedModel, setSelectedModel] = useState('llama-3.1-8b-instant');
-  const [isThinkingMode, setIsThinkingMode] = useState(false);
-  const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
-  const [isActionMenuInteracting, setIsActionMenuInteracting] = useState(false);
-  const [actionMenuView, setActionMenuView] = useState<'main' | 'model'>('main');
   const [chats, setChats] = useState<Chat[]>([createNewChat()]);
   const [activeChatId, setActiveChatId] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -43,20 +40,13 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [themeMode, setThemeMode] = useState<'system' | 'dark' | 'light'>(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('salaris_theme_mode');
-      if (stored === 'system' || stored === 'dark' || stored === 'light') return stored;
+  const [theme, setTheme] = useState<'dark' | 'light'>('light');
+
+  useEffect(() => {
+    if (telegramTheme) {
+      setTheme(telegramTheme);
     }
-    return 'system';
-  });
-  const [systemTheme, setSystemTheme] = useState<'dark' | 'light'>(() => {
-    if (typeof window !== 'undefined' && window.matchMedia) {
-      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    }
-    return 'light';
-  });
-  const theme = themeMode === 'system' ? systemTheme : themeMode;
+  }, [telegramTheme]);
   const [accentColor, setAccentColor] = useState<string>('laguna');
   const [isGlowEnabled, setIsGlowEnabled] = useState<boolean>(true);
 
@@ -97,9 +87,6 @@ export default function App() {
         // Проверяем, существует ли еще пользователь в auth
         const { data: { user: verifiedUser }, error: userError } = await supabase.auth.getUser();
         if (userError || !verifiedUser) {
-          if (userError?.message?.includes('Lock was stolen')) {
-            return; // Ignore lock stolen errors
-          }
           console.error('User no longer exists. Signing out...');
           supabase.auth.signOut().catch(() => {});
           setUser(null);
@@ -110,9 +97,6 @@ export default function App() {
         console.warn('Access denied or invalid token. Verifying user existence...');
         const { data: { user: verifiedUser }, error: userError } = await supabase.auth.getUser();
         if (userError || !verifiedUser) {
-          if (userError?.message?.includes('Lock was stolen')) {
-            return; // Ignore lock stolen errors
-          }
           supabase.auth.signOut().catch(() => {});
           setUser(null);
           setProfile(null);
@@ -189,7 +173,7 @@ export default function App() {
     } catch (error: any) {
       console.error('Avatar upload error:', error);
       if (error.message === 'Load failed') {
-        alert('Ошибка сети при загрузке аватара. Это может быть вызвано блокировщиком рекламы или неверным URL Supabase.');
+        alert('Ошибка сети при загрузке аватара. Проверьте соединение.');
       } else {
         alert('Ошибка при загрузке аватара: ' + error.message);
       }
@@ -197,6 +181,7 @@ export default function App() {
   };
 
   const handleDeleteAccount = async () => {
+    console.log('handleDeleteAccount called', { hasSupabase: !!supabase, hasUser: !!user });
     if (!supabase || !user) {
       alert('Ошибка: Supabase или пользователь не инициализированы. Проверьте подключение.');
       return;
@@ -207,6 +192,7 @@ export default function App() {
 
     setIsLoading(true);
     try {
+      console.log('Calling RPC delete_user...');
       // Вызываем функцию удаления через RPC
       const { error } = await supabase.rpc('delete_user');
       if (error) {
@@ -214,6 +200,7 @@ export default function App() {
         throw error;
       }
 
+      console.log('RPC success, signing out...');
       // После удаления выходим из сессии
       await supabase.auth.signOut();
       setUser(null);
@@ -244,10 +231,19 @@ export default function App() {
   };
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   
+  const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
+  const [isActionMenuInteracting, setIsActionMenuInteracting] = useState(false);
+  const [actionMenuView, setActionMenuView] = useState<'main' | 'model'>('main');
+  const [selectedModel, setSelectedModel] = useState<'llama-3.3-70b-versatile' | 'meta-llama/llama-4-scout-17b-16e-instruct'>('meta-llama/llama-4-scout-17b-16e-instruct');
+  const [isThinkingMode, setIsThinkingMode] = useState<boolean>(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const stopGenerationRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    console.log('Auth State:', { isLoaded, isAuthReady, user: user?.email, hasSupabase: !!supabase });
+  }, [isLoaded, isAuthReady, user]);
 
   const [reportContext, setReportContext] = useState<{ messageId?: string, text?: string, type: 'report' | 'like' | 'dislike' } | null>(null);
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
@@ -268,9 +264,6 @@ export default function App() {
         const { data: { user: verifiedUser }, error: authError } = await supabase.auth.getUser();
         
         if (authError || !verifiedUser) {
-          if (authError?.message?.includes('Lock was stolen')) {
-            return; // Ignore lock stolen errors in background checks
-          }
           console.warn('User session invalid or user deleted externally. Signing out...');
           supabase.auth.signOut().catch(() => {});
           setUser(null);
@@ -291,7 +284,10 @@ export default function App() {
           return;
         }
         
+        console.log('Current ban status from DB:', profileData?.is_banned);
+        
         if (profileData?.is_banned === true) {
+          console.log('User is banned, showing blocked screen');
           setIsBanned(true);
         } else {
           setIsBanned(false);
@@ -313,19 +309,9 @@ export default function App() {
       supabase.auth.getUser().then(({ data: { user: initialUser }, error }) => {
         if (error || !initialUser) {
           if (error && error.message !== 'Auth session missing!') {
-            if (error.message.includes('Lock was stolen')) {
-              console.warn('Initial auth check warning: Lock was stolen by another request (safe to ignore)');
-              // Fallback to getSession to avoid logging out the user incorrectly
-              supabase.auth.getSession().then(({ data: { session } }) => {
-                setUser(session?.user ?? null);
-                setIsAuthReady(true);
-              });
-              return;
-            } else {
-              console.error('Initial auth check error:', error.message);
-            }
+            console.error('Initial auth check error:', error.message);
             if (error.message === 'Load failed') {
-              console.error('Network error: Supabase auth request failed (Load failed). This usually means the Supabase URL is incorrect or blocked by your network/browser.');
+              console.error('Network error: Supabase auth request failed (Load failed).');
             }
           }
           setUser(null);
@@ -334,11 +320,7 @@ export default function App() {
         }
         setIsAuthReady(true);
       }).catch((err) => {
-        if (err?.message?.includes('Lock was stolen') || String(err).includes('Lock was stolen')) {
-          console.warn('Auth check promise rejected: Lock was stolen by another request (safe to ignore)');
-        } else {
-          console.error('Auth check promise rejected:', err);
-        }
+        console.error('Auth check promise rejected:', err);
         setIsAuthReady(true);
       });
 
@@ -363,7 +345,7 @@ export default function App() {
       try {
         const storedChats = await localforage.getItem<Chat[]>('salaris_chats');
         const storedActiveChatId = await localforage.getItem<string>('salaris_active_chat');
-        const legacyTheme = await localforage.getItem<'dark' | 'light'>('salaris_theme');
+        const storedTheme = await localforage.getItem<'dark' | 'light'>('salaris_theme');
         const storedAccentColor = await localforage.getItem<string>('salaris_accent');
         const storedGlow = await localforage.getItem<boolean>('salaris_glow');
         const storedModel = await localforage.getItem<string>('salaris_model');
@@ -391,13 +373,15 @@ export default function App() {
           setActiveChatId(newChat.id);
         }
 
-        if (legacyTheme) {
-          setThemeMode(legacyTheme);
-          localStorage.setItem('salaris_theme_mode', legacyTheme);
-          localforage.removeItem('salaris_theme');
-        }
+        if (storedTheme) setTheme(storedTheme);
         if (storedAccentColor) setAccentColor(storedAccentColor);
         if (storedGlow !== null) setIsGlowEnabled(storedGlow);
+        if (['llama-3.3-70b-versatile', 'meta-llama/llama-4-scout-17b-16e-instruct'].includes(storedModel || '')) {
+          setSelectedModel(storedModel as any);
+        } else {
+          setSelectedModel('meta-llama/llama-4-scout-17b-16e-instruct');
+          localforage.setItem('salaris_model', 'meta-llama/llama-4-scout-17b-16e-instruct');
+        }
       } catch (error) {
         // Silently handle localforage load errors
       } finally {
@@ -415,24 +399,14 @@ export default function App() {
     const timer = setTimeout(() => {
       localforage.setItem('salaris_chats', chats);
       localforage.setItem('salaris_active_chat', activeChatId);
-      localforage.setItem('salaris_theme_mode', themeMode);
-      localStorage.setItem('salaris_theme_mode', themeMode);
+      localforage.setItem('salaris_theme', theme);
       localforage.setItem('salaris_accent', accentColor);
       localforage.setItem('salaris_glow', isGlowEnabled);
+      localforage.setItem('salaris_model', selectedModel);
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [chats, activeChatId, themeMode, accentColor, isGlowEnabled, isLoaded]);
-
-  // Listen for system theme changes
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = (e: MediaQueryListEvent) => {
-      setSystemTheme(e.matches ? 'dark' : 'light');
-    };
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
-  }, []);
+  }, [chats, activeChatId, theme, accentColor, isGlowEnabled, selectedModel, isLoaded]);
 
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
@@ -527,7 +501,7 @@ export default function App() {
   }, [accentColor]);
 
   const toggleTheme = useCallback(() => {
-    setThemeMode(prev => prev === 'dark' ? 'light' : 'dark');
+    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
   }, []);
 
   const handleScroll = useCallback(() => {
@@ -627,6 +601,7 @@ export default function App() {
     if ((!input.trim() && selectedFiles.length === 0) || isLoading) return;
 
     const userMsg = input.trim();
+    const currentThinkingMode = isThinkingMode;
     const currentFiles = [...selectedFiles];
     
     setInput('');
@@ -634,6 +609,7 @@ export default function App() {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
+    setIsThinkingMode(false);
     setIsLoading(true);
     setIsGenerating(true);
     stopGenerationRef.current = false;
@@ -659,35 +635,48 @@ export default function App() {
     const targetChatId = activeChatId;
     const modelMessageId = (Date.now() + 1).toString();
 
-    // Prepare the message history including the new user message
-    const updatedMessages = [...(activeChat?.messages || []), userMessage];
-
     try {
-      // Add empty AI message
-      setChats(prev => prev.map(chat => {
-        if (chat.id === targetChatId) {
-          return { ...chat, messages: [...updatedMessages, { id: modelMessageId, role: 'model', content: '', isTyping: true }] };
-        }
-        return chat;
-      }));
+      const chatHistory = activeChat ? activeChat.messages : [];
+      
+      const stream = generateGroqResponseStream(userMsg, selectedModel, chatHistory);
 
-      // Call Groq with the updated history
-      const stream = await getGroqChatCompletion(updatedMessages, selectedModel, isThinkingMode);
-      let fullContent = '';
-      for await (const chunk of stream) {
-        const content = chunk.choices[0]?.delta?.content || '';
-        fullContent += content;
+      let isFirstChunk = true;
+      let currentTyped = '';
+      for await (const chunkText of stream) {
+        if (stopGenerationRef.current) break;
+        if (isFirstChunk) {
+          setIsLoading(false); // Stop showing typing indicator once we start receiving the response
+          // Add empty message first to start typing
+          setChats(prev => prev.map(chat => {
+            if (chat.id === targetChatId) {
+              return { ...chat, messages: [...chat.messages, { id: modelMessageId, role: 'model', content: '', isTyping: true }] };
+            }
+            return chat;
+          }));
+          isFirstChunk = false;
+        }
+        
+        currentTyped += chunkText;
         setChats(prev => prev.map(chat => {
           if (chat.id === targetChatId) {
-            return { ...chat, messages: chat.messages.map(m => m.id === modelMessageId ? { ...m, content: fullContent } : m) };
+            return {
+              ...chat,
+              messages: chat.messages.map(m => m.id === modelMessageId ? { ...m, content: currentTyped, isTyping: true } : m)
+            };
           }
           return chat;
         }));
+        if (stopGenerationRef.current) break;
       }
+      setIsGenerating(false);
 
+      // Finish typing
       setChats(prev => prev.map(chat => {
         if (chat.id === targetChatId) {
-          return { ...chat, messages: chat.messages.map(m => m.id === modelMessageId ? { ...m, isTyping: false } : m) };
+          return {
+            ...chat,
+            messages: chat.messages.map(m => m.id === modelMessageId ? { ...m, isTyping: false } : m)
+          };
         }
         return chat;
       }));
@@ -743,7 +732,7 @@ export default function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [input, isLoading, activeChatId, chats]);
+  }, [input, isLoading, activeChatId, selectedModel, isThinkingMode, chats]);
 
   const handleRegenerate = useCallback(async (messageId: string) => {
     const chat = chats.find(c => c.id === activeChatId);
@@ -782,31 +771,44 @@ export default function App() {
     try {
       const chatHistory = activeChat ? activeChat.messages.slice(0, lastUserMsgIndex) : [];
       
-      // Add empty AI message
-      setChats(prev => prev.map(c => {
-        if (c.id === targetChatId) {
-          return { ...c, messages: [...c.messages, { id: modelMessageId, role: 'model', content: '', isTyping: true }] };
-        }
-        return c;
-      }));
+      const stream = generateGroqResponseStream(userMsgContent, selectedModel, chatHistory);
 
-      // Call Groq
-      const stream = await getGroqChatCompletion(chatHistory, selectedModel, isThinkingMode);
-      let fullContent = '';
-      for await (const chunk of stream) {
-        const content = chunk.choices[0]?.delta?.content || '';
-        fullContent += content;
-        setChats(prev => prev.map(c => {
-          if (c.id === targetChatId) {
-            return { ...c, messages: c.messages.map(m => m.id === modelMessageId ? { ...m, content: fullContent } : m) };
-          }
-          return c;
-        }));
+      let isFirstChunk = true;
+      let currentTyped = '';
+      for await (const chunkText of stream) {
+        if (isFirstChunk) {
+          setIsLoading(false);
+          setChats(prev => prev.map(c => {
+            if (c.id === targetChatId) {
+              return { ...c, messages: [...c.messages, { id: modelMessageId, role: 'model', content: '', isTyping: true }] };
+            }
+            return c;
+          }));
+          isFirstChunk = false;
+        }
+        
+        const tokens = chunkText.match(/(\s+|\S+)/g) || [];
+        for (const token of tokens) {
+          currentTyped += token;
+          setChats(prev => prev.map(c => {
+            if (c.id === targetChatId) {
+              return {
+                ...c,
+                messages: c.messages.map(m => m.id === modelMessageId ? { ...m, content: currentTyped, isTyping: true } : m)
+              };
+            }
+            return c;
+          }));
+          await new Promise(resolve => setTimeout(resolve, 20 + Math.random() * 20));
+        }
       }
 
       setChats(prev => prev.map(c => {
         if (c.id === targetChatId) {
-          return { ...c, messages: c.messages.map(m => m.id === modelMessageId ? { ...m, isTyping: false } : m) };
+          return {
+            ...c,
+            messages: c.messages.map(m => m.id === modelMessageId ? { ...m, isTyping: false } : m)
+          };
         }
         return c;
       }));
@@ -857,7 +859,7 @@ export default function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [chats, activeChatId, isLoading]);
+  }, [chats, activeChatId, isLoading, selectedModel, isThinkingMode]);
 
   const handleReport = useCallback((messageId?: string) => {
     if (messageId) {
@@ -907,6 +909,7 @@ export default function App() {
           message_id: reportContext?.messageId || null,
           message_text: reportContext?.text || null,
           chat_id: activeChatId || null,
+          model: selectedModel,
           created_at: new Date().toISOString()
         }
       ]);
@@ -1120,8 +1123,7 @@ export default function App() {
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.15 }}
                     onClick={() => setIsActionMenuOpen(false)}
-                    className="fixed inset-0 z-[190] bg-black/20 backdrop-blur-[2px] pointer-events-auto"
-                    style={{ willChange: "backdrop-filter" }}
+                    className="fixed inset-0 z-[190] bg-black/10 backdrop-blur-[2px] pointer-events-auto"
                   />
                 )}
               </AnimatePresence>
@@ -1157,19 +1159,20 @@ export default function App() {
               {/* Action Menu Content */}
               <AnimatePresence mode="wait">
                 {isActionMenuOpen && (
-                  <motion.div
-                    key={actionMenuView}
-                    initial={{ scale: 0.9, opacity: 0 }}
-                    animate={{ 
-                      scale: isActionMenuInteracting ? 0.97 : 1, 
-                      opacity: 1,
-                      transition: { type: "spring", damping: 25, stiffness: 300 } 
-                    }}
-                    exit={{ scale: 0.9, opacity: 0, transition: { duration: 0.15, ease: "easeOut" } }}
-                    style={{ transformOrigin: '24px calc(100% - 24px)', willChange: "transform, opacity" }}
-                    className={`absolute bottom-0 left-0 z-[200] w-64 rounded-[2rem] overflow-hidden p-2 hyper-glass hyper-glass-shadow`}
-                  >
-                    {actionMenuView === 'main' ? (
+                  actionMenuView === 'main' ? (
+                    <motion.div
+                      key="main"
+                      initial={{ scale: 0, opacity: 0, z: 0 }}
+                      animate={{ 
+                        scale: isActionMenuInteracting ? 0.97 : 1, 
+                        opacity: 1,
+                        z: 0,
+                        transition: { type: "spring", damping: 25, stiffness: 300 } 
+                      }}
+                      exit={{ scale: 0, opacity: 0, z: 0, transition: { duration: 0.15, ease: "easeOut" } }}
+                      style={{ transformOrigin: '24px calc(100% - 24px)', willChange: "transform, opacity" }}
+                      className={`absolute bottom-0 left-0 z-[200] w-64 rounded-[2rem] overflow-hidden p-2 hyper-glass hyper-glass-shadow`}
+                    >
                       <div className="flex flex-col">
                         <motion.button
                           onTapStart={() => setIsActionMenuInteracting(true)}
@@ -1190,7 +1193,43 @@ export default function App() {
                             <span>Добавить файл</span>
                           </div>
                         </motion.button>
+
                         <motion.button
+                          onTapStart={() => setIsActionMenuInteracting(true)}
+                          onTap={() => setIsActionMenuInteracting(false)}
+                          onTapCancel={() => setIsActionMenuInteracting(false)}
+                          onClick={() => {
+                            setIsThinkingMode(!isThinkingMode);
+                            setIsActionMenuOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between px-4 py-3 rounded-full text-sm font-medium transition-colors ${
+                            theme === 'dark' 
+                              ? 'hover:bg-white/10 active:bg-white/20 text-white' 
+                              : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={isThinkingMode ? getAccentClass('text') : ''}>
+                              <path d="M9 18h6" />
+                              <path d="M10 22h4" />
+                              <path d="M12 2v1" />
+                              <path d="M12 7v1" />
+                              <path d="M12 12v1" />
+                              <path d="M19 12h-1" />
+                              <path d="M14 12h-1" />
+                              <path d="M5 12h1" />
+                              <path d="M10 12h1" />
+                              <path d="M17 5l-1 1" />
+                              <path d="M13 9l-1 1" />
+                              <path d="M7 5l1 1" />
+                              <path d="M11 9l1 1" />
+                            </svg>
+                            <span className={isThinkingMode ? getAccentClass('text') : ''}>Размышление</span>
+                          </div>
+                          {isThinkingMode && <Check className={`w-4 h-4 ${getAccentClass('text')}`} />}
+                        </motion.button>
+
+                        <motion.button 
                           onTapStart={() => setIsActionMenuInteracting(true)}
                           onTap={() => setIsActionMenuInteracting(false)}
                           onTapCancel={() => setIsActionMenuInteracting(false)}
@@ -1202,36 +1241,87 @@ export default function App() {
                           }`}
                         >
                           <div className="flex items-center gap-3">
-                            <span className="w-4 h-4 flex items-center justify-center">🤖</span>
-                            <span>{selectedModel}</span>
+                            <Brain className="w-4 h-4" />
+                            Модель
                           </div>
+                          <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                            {selectedModel === 'llama-3.3-70b-versatile' ? 'Osmium X' : 'Osmium'}
+                          </span>
                         </motion.button>
+
                       </div>
-                    ) : (
+                    </motion.div>
+                  ) : (
+                    <motion.div 
+                      key="model"
+                      initial={{ scale: 0, opacity: 0, z: 0 }}
+                      animate={{ 
+                        scale: isActionMenuInteracting ? 0.97 : 1, 
+                        opacity: 1,
+                        z: 0,
+                        transition: { type: "spring", damping: 25, stiffness: 300 } 
+                      }}
+                      exit={{ scale: 0, opacity: 0, z: 0, transition: { duration: 0.15, ease: "easeOut" } }}
+                      style={{ transformOrigin: '24px calc(100% - 24px)', willChange: "transform, opacity" }}
+                      className={`absolute bottom-0 left-0 z-[200] w-64 rounded-[2rem] overflow-hidden shadow-[0_16px_40px_rgba(0,0,0,0.2)] border p-2 backdrop-blur-xl ${
+                        theme === 'dark' 
+                          ? 'bg-white/10 border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]' 
+                          : 'bg-white/60 border-white/40 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]'
+                      }`}
+                    >
                       <div className="flex flex-col">
-                        <div className="px-4 py-2 text-xs font-semibold opacity-50 uppercase tracking-wider">Выберите модель</div>
-                        {['llama-3.1-8b-instant', 'llama-3.1-70b-versatile', 'mixtral-8x7b-32768'].map((model) => (
-                          <motion.button
-                            key={model}
-                            onTapStart={() => setIsActionMenuInteracting(true)}
-                            onTap={() => setIsActionMenuInteracting(false)}
-                            onTapCancel={() => setIsActionMenuInteracting(false)}
-                            onClick={() => {
-                              setSelectedModel(model);
-                              setActionMenuView('main');
-                            }}
-                            className={`w-full flex items-center justify-between px-4 py-3 rounded-full text-sm font-medium transition-colors ${
-                              selectedModel === model
-                                ? (theme === 'dark' ? 'bg-white/10 text-white' : 'bg-black/5 text-gray-900')
-                                : (theme === 'dark' ? 'hover:bg-white/5 text-white/70' : 'hover:bg-black/5 text-gray-600')
+                        <div className="flex items-center gap-2 px-2 pb-2">
+                          <motion.button 
+                            whileTap={{ scale: 0.97 }}
+                            onClick={() => setActionMenuView('main')}
+                            className={`p-2 rounded-full transition-colors ${
+                              theme === 'dark' ? 'hover:bg-white/10 text-gray-400' : 'hover:bg-black/5 text-gray-500'
                             }`}
                           >
-                            <span>{model}</span>
+                            <ChevronLeft className="w-5 h-5" />
                           </motion.button>
-                        ))}
+                          <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                            Выберите модель
+                          </span>
+                        </div>
+                        
+                        <motion.button 
+                          onTapStart={() => setIsActionMenuInteracting(true)}
+                          onTap={() => setIsActionMenuInteracting(false)}
+                          onTapCancel={() => setIsActionMenuInteracting(false)}
+                          onClick={() => { setSelectedModel('meta-llama/llama-4-scout-17b-16e-instruct'); setActionMenuView('main'); }}
+                          className={`flex flex-col items-start px-4 py-2.5 rounded-full text-sm font-medium transition-colors ${
+                            theme === 'dark' 
+                              ? 'hover:bg-white/10 active:bg-white/20 text-white' 
+                              : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between w-full">
+                            Osmium
+                            {selectedModel === 'meta-llama/llama-4-scout-17b-16e-instruct' && <Check className="w-4 h-4" />}
+                          </div>
+                          <span className={`text-[11px] ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>Быстрый ответ</span>
+                        </motion.button>
+                        <motion.button 
+                          onTapStart={() => setIsActionMenuInteracting(true)}
+                          onTap={() => setIsActionMenuInteracting(false)}
+                          onTapCancel={() => setIsActionMenuInteracting(false)}
+                          onClick={() => { setSelectedModel('llama-3.3-70b-versatile'); setActionMenuView('main'); }}
+                          className={`flex flex-col items-start px-4 py-2.5 rounded-full text-sm font-medium transition-colors ${
+                            theme === 'dark' 
+                              ? 'hover:bg-white/10 active:bg-white/20 text-white' 
+                              : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between w-full">
+                            Osmium X
+                            {selectedModel === 'llama-3.3-70b-versatile' && <Check className="w-4 h-4" />}
+                          </div>
+                          <span className={`text-[11px] ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>Подробный ответ</span>
+                        </motion.button>
                       </div>
-                    )}
-                  </motion.div>
+                    </motion.div>
+                  )
                 )}
               </AnimatePresence>
             </div>
@@ -1252,8 +1342,52 @@ export default function App() {
               {/* Input Bar Container */}
               <div className={`relative z-10 flex flex-col rounded-[2rem] p-1.5 hyper-glass hyper-glass-shadow`}>
                 
-                {/* Top section: Image Preview */}
+                {/* Top section: Pills and Image Preview */}
                 <AnimatePresence initial={false}>
+                  {isThinkingMode && (
+                    <motion.div 
+                      key="pills-container"
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="flex flex-wrap items-center gap-2 px-3 pt-2 pb-1.5 pointer-events-auto">
+                        <AnimatePresence>
+                          {isThinkingMode && (
+                            <motion.div 
+                              key="thinking-mode"
+                              initial={{ scale: 0.8, opacity: 0 }}
+                              animate={{ scale: 1, opacity: 1 }}
+                              exit={{ scale: 0.8, opacity: 0 }}
+                              className={`flex items-center gap-1.5 shadow-sm rounded-full px-3 py-1.5 border ${theme === 'dark' ? 'bg-[#2a2a2a] border-white/10' : 'bg-white border-gray-100'}`}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={getAccentClass('text')}>
+                                <path d="M9 18h6" />
+                                <path d="M10 22h4" />
+                                <path d="M12 2v1" />
+                                <path d="M12 7v1" />
+                                <path d="M12 12v1" />
+                                <path d="M19 12h-1" />
+                                <path d="M14 12h-1" />
+                                <path d="M5 12h1" />
+                                <path d="M10 12h1" />
+                                <path d="M17 5l-1 1" />
+                                <path d="M13 9l-1 1" />
+                                <path d="M7 5l1 1" />
+                                <path d="M11 9l1 1" />
+                              </svg>
+                              <span className={`text-[13px] font-medium ${getAccentClass('text')}`}>Размышление</span>
+                              <button onClick={() => setIsThinkingMode(false)} className={`ml-1 ${getAccentClass('text')} hover:opacity-70 transition-opacity`}>
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    </motion.div>
+                  )}
                 </AnimatePresence>
 
                 <div className="flex items-end gap-2 w-full">
@@ -1339,16 +1473,20 @@ export default function App() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setEditingChatId(null)}
-              style={{ willChange: "opacity, backdrop-filter" }}
-              className="absolute inset-0 bg-black/20 backdrop-blur-[2px]"
+              style={{ willChange: "opacity" }}
+              className="absolute inset-0 bg-black/10 backdrop-blur-[2px]"
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
               transition={{ type: "spring", damping: 25, stiffness: 500, mass: 0.8 }}
-              style={{ willChange: "transform, opacity, backdrop-filter" }}
-              className={`relative w-full max-w-[300px] rounded-[2rem] overflow-hidden p-2 hyper-glass hyper-glass-shadow`}
+              style={{ willChange: "transform, opacity" }}
+              className={`relative w-full max-w-[300px] rounded-[2rem] overflow-hidden shadow-[0_16px_40px_rgba(0,0,0,0.2)] border ${
+                theme === 'dark' 
+                  ? 'bg-white/10 border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]' 
+                  : 'bg-white/60 border-white/40 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]'
+              } backdrop-blur-xl`}
             >
               <div className="p-6">
                 <h3 className={`text-lg font-semibold mb-4 text-left ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
@@ -1405,16 +1543,20 @@ export default function App() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsDeleteConfirmOpen(false)}
-              style={{ willChange: "opacity, backdrop-filter" }}
-              className="absolute inset-0 bg-black/20 backdrop-blur-[2px]"
+              style={{ willChange: "opacity" }}
+              className="absolute inset-0 bg-black/10 backdrop-blur-[2px]"
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
               transition={{ type: "spring", damping: 25, stiffness: 500, mass: 0.8 }}
-              style={{ willChange: "transform, opacity, backdrop-filter" }}
-              className={`relative w-full max-w-[300px] rounded-[2rem] overflow-hidden p-2 hyper-glass hyper-glass-shadow`}
+              style={{ willChange: "transform, opacity" }}
+              className={`relative w-full max-w-[300px] rounded-[2rem] overflow-hidden shadow-[0_16px_40px_rgba(0,0,0,0.2)] border ${
+                theme === 'dark' 
+                  ? 'bg-white/10 border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]' 
+                  : 'bg-white/60 border-white/40 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]'
+              } backdrop-blur-xl`}
             >
               <div className="p-6">
                 <h3 className={`text-lg font-semibold mb-2 text-left ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
@@ -1457,8 +1599,8 @@ export default function App() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
             onClick={() => setIsSettingsOpen(false)}
-            style={{ willChange: "opacity, backdrop-filter" }}
-            className="fixed inset-0 z-[200] bg-black/20 backdrop-blur-[2px]"
+            style={{ willChange: "opacity" }}
+            className="fixed inset-0 z-[200] bg-black/10 backdrop-blur-[2px]"
           />
         )}
       </AnimatePresence>
@@ -1811,28 +1953,28 @@ export default function App() {
                     )}
                   </AnimatePresence>
 
-                  {/* System Theme Toggle */}
+                  {/* Dark Theme Toggle */}
                   <motion.button 
                     whileTap={{ scale: 0.97 }}
                     onTapStart={() => setIsSettingsInteracting(true)}
                     onTap={() => setIsSettingsInteracting(false)}
                     onTapCancel={() => setIsSettingsInteracting(false)}
-                    onClick={() => setThemeMode(prev => prev === 'system' ? systemTheme : 'system')}
+                    onClick={toggleTheme}
                     className={`w-full rounded-full px-4 py-3 flex items-center justify-between transition-colors cursor-pointer ${
                       theme === 'dark' ? 'hover:bg-white/5 active:bg-white/10' : 'hover:bg-black/5 active:bg-black/10'
                     }`}
                   >
                     <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                      Системная тема
+                      Темная тема
                     </span>
                     <div
                       className={`w-10 h-6 rounded-full transition-colors relative flex items-center ${
-                        themeMode === 'system' ? getAccentClass('bg') : 'bg-gray-300'
+                        theme === 'dark' ? getAccentClass('bg') : 'bg-gray-300'
                       }`}
                     >
                       <motion.div 
                         animate={{ 
-                          x: themeMode === 'system' ? 20 : 4,
+                          x: theme === 'dark' ? 20 : 4,
                           width: 16,
                           backgroundColor: "rgba(255,255,255,1)",
                           backdropFilter: "blur(0px)"
@@ -1842,45 +1984,6 @@ export default function App() {
                       />
                     </div>
                   </motion.button>
-
-                  {/* Dark Theme Toggle */}
-                  <AnimatePresence>
-                    {themeMode !== 'system' && (
-                      <motion.button 
-                        initial={{ opacity: 0, height: 0, marginTop: 0 }}
-                        animate={{ opacity: 1, height: 'auto', marginTop: 8 }}
-                        exit={{ opacity: 0, height: 0, marginTop: 0 }}
-                        whileTap={{ scale: 0.97 }}
-                        onTapStart={() => setIsSettingsInteracting(true)}
-                        onTap={() => setIsSettingsInteracting(false)}
-                        onTapCancel={() => setIsSettingsInteracting(false)}
-                        onClick={toggleTheme}
-                        className={`w-full rounded-full px-4 py-3 flex items-center justify-between transition-colors cursor-pointer overflow-hidden ${
-                          theme === 'dark' ? 'hover:bg-white/5 active:bg-white/10' : 'hover:bg-black/5 active:bg-black/10'
-                        }`}
-                      >
-                        <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                          Темная тема
-                        </span>
-                        <div
-                          className={`w-10 h-6 rounded-full transition-colors relative flex items-center ${
-                            theme === 'dark' ? getAccentClass('bg') : 'bg-gray-300'
-                          }`}
-                        >
-                          <motion.div 
-                            animate={{ 
-                              x: theme === 'dark' ? 20 : 4,
-                              width: 16,
-                              backgroundColor: "rgba(255,255,255,1)",
-                              backdropFilter: "blur(0px)"
-                            }}
-                            transition={{ type: "spring", damping: 20, stiffness: 300 }}
-                            className="absolute left-0 h-4 rounded-full shadow-sm"
-                          />
-                        </div>
-                      </motion.button>
-                    )}
-                  </AnimatePresence>
 
                   {/* Glow Toggle */}
                   <motion.button 
@@ -1956,7 +2059,7 @@ export default function App() {
                     Версия
                   </span>
                   <span className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>
-                    1.2
+                    1.1
                   </span>
                 </div>
 
