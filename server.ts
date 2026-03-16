@@ -2,6 +2,7 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
+import cors from "cors";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -10,13 +11,15 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  app.use(cors());
   app.use(express.json());
 
-  // Groq Proxy to avoid CORS and "Load failed" in browser
+  // Groq Proxy
   app.post("/api/groq", async (req, res) => {
     const apiKey = process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY;
     
     if (!apiKey) {
+      console.error("Missing GROQ_API_KEY");
       return res.status(500).json({ error: { message: "Groq API key is missing on server." } });
     }
 
@@ -32,17 +35,19 @@ async function startServer() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        console.error("Groq API error:", response.status, errorData);
         return res.status(response.status).json(errorData);
       }
 
       // Handle streaming
       if (req.body.stream) {
         res.setHeader('Content-Type', 'text/event-stream');
-        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Cache-Control', 'no-cache, no-transform');
         res.setHeader('Connection', 'keep-alive');
+        res.setHeader('X-Accel-Buffering', 'no'); // Disable buffering for Nginx
 
         const reader = response.body?.getReader();
-        if (!reader) throw new Error("No reader");
+        if (!reader) throw new Error("No reader from Groq response");
 
         while (true) {
           const { done, value } = await reader.read();
@@ -55,9 +60,14 @@ async function startServer() {
         res.json(data);
       }
     } catch (error: any) {
-      console.error("Groq Proxy Error:", error);
-      res.status(500).json({ error: { message: error.message } });
+      console.error("Internal Proxy Error:", error);
+      res.status(500).json({ error: { message: error.message || "Unknown proxy error" } });
     }
+  });
+
+  // Fallback for trailing slash
+  app.post("/api/groq/", (req, res) => {
+    res.redirect(307, "/api/groq");
   });
 
   // Vite middleware for development

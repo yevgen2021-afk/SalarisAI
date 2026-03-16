@@ -34,11 +34,12 @@ export const generateGroqResponseStream = async function*(
 
   let response;
   try {
-    // Use local proxy to avoid CORS and "Load failed" errors in browser
+    // Relative path is more stable within the AI Studio proxy environment
     response = await fetch('/api/groq', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache'
       },
       body: JSON.stringify({
         model: model,
@@ -50,15 +51,13 @@ export const generateGroqResponseStream = async function*(
     });
   } catch (e: any) {
     console.error('Groq fetch error:', e);
-    if (e.message === 'Load failed') {
-      throw new Error('Groq API request failed (Load failed). This usually means the request was blocked by a browser extension or network policy. We tried to use a proxy, but the connection still failed.');
-    }
-    throw new Error(`Failed to connect to Groq API (via proxy): ${e.message}`);
+    throw new Error(`Groq fetch error: ${e.message || 'Load failed'}. This usually means the request was blocked by a browser extension or the server is not responding.`);
   }
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error?.message || `Groq API error: ${response.status} ${response.statusText}`);
+    console.error('Server error:', response.status, errorData);
+    throw new Error(errorData.error?.message || `Groq API error: ${response.status}`);
   }
 
   const reader = response.body?.getReader();
