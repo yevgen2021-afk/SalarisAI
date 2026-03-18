@@ -1940,7 +1940,7 @@ export default function App() {
                 <div className="flex flex-col">
                   {/* Color Selection */}
                   <div 
-                    className={`rounded-[1.5rem] overflow-hidden transition-colors ${
+                    className={`rounded-[1.5rem] overflow-hidden ${
                       theme === 'dark' ? 'hover:bg-white/5' : 'hover:bg-black/5'
                     }`}
                   >
@@ -1952,7 +1952,7 @@ export default function App() {
                       onClick={() => {
                         setIsColorExpanded(!isColorExpanded);
                       }}
-                      className={`w-full flex items-center justify-between px-4 py-3 rounded-full transition-colors ${
+                      className={`w-full flex items-center justify-between px-4 py-3 rounded-full transition-[background-color,color] duration-200 ${
                          theme === 'dark' ? 'active:bg-white/10' : 'active:bg-black/10'
                       }`}
                     >
@@ -1970,7 +1970,7 @@ export default function App() {
                           initial={{ height: 0, opacity: 0 }}
                           animate={{ height: 'auto', opacity: 1 }}
                           exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+                          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
                           className="overflow-hidden"
                         >
                           <div className="px-2 pb-2 flex flex-col">
@@ -1985,23 +1985,13 @@ export default function App() {
                               />
                             ))}
                           </div>
+                          
+                          {/* Separator inside the same expanding container */}
+                          <div className={`w-full h-[1px] my-2 ${theme === 'dark' ? 'bg-white/10' : 'bg-black/5'}`} />
                         </motion.div>
                       )}
                     </AnimatePresence>
                   </div>
-
-                  {/* Separator */}
-                  <AnimatePresence initial={false}>
-                    {isColorExpanded && (
-                      <motion.div 
-                        initial={{ height: 0, opacity: 0, marginTop: 0, marginBottom: 0 }}
-                        animate={{ height: 1, opacity: 1, marginTop: 8, marginBottom: 8 }}
-                        exit={{ height: 0, opacity: 0, marginTop: 0, marginBottom: 0 }}
-                        transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-                        className={`w-full ${theme === 'dark' ? 'bg-white/10' : 'bg-black/5'}`} 
-                      />
-                    )}
-                  </AnimatePresence>
 
                   {/* Auto Theme Toggle */}
                   <motion.button 
@@ -2042,7 +2032,7 @@ export default function App() {
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.2, ease: "easeInOut" }}
+                        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
                         className="overflow-hidden"
                       >
                         <motion.button 
