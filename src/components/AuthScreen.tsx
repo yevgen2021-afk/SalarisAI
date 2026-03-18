@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Brain, Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
+import { Brain, Mail, Lock, ArrowRight, Loader2, User } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface AuthScreenProps {
@@ -137,15 +137,12 @@ export default function AuthScreen({ theme, accentColor, onLoginSuccess }: AuthS
         transition={{ duration: 0.5, ease: "easeOut" }}
         className="w-full max-w-[400px]"
       >
-        <div className="flex flex-col items-center mb-12">
-          <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-6 shadow-lg ${getAccentClass('bg')}`}>
-            <Brain className="w-8 h-8 text-white" />
-          </div>
+        <div className="flex flex-col items-start mb-12">
           <h1 className={`text-4xl font-google font-bold tracking-tighter ${theme === 'dark' ? 'text-white' : 'text-gray-900'} flex items-center gap-0.5`}>
             salaris<span className={getAccentClass('text')}>ai</span>
           </h1>
-          <p className={`mt-3 text-center ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-            {mfaStep ? 'Введите 6-значный код безопасности' : 'Войдите в Salaris Account, чтобы продолжить'}
+          <p className={`mt-3 text-left ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+            {mfaStep ? 'Введите 6-значный код безопасности' : (isLogin ? 'Вход в Salaris Account' : 'Регистрация в Salaris Account')}
           </p>
         </div>
 
@@ -165,7 +162,7 @@ export default function AuthScreen({ theme, accentColor, onLoginSuccess }: AuthS
                   placeholder="000000"
                   required
                   autoFocus
-                  className={`w-full h-14 pl-12 pr-4 text-center text-2xl tracking-[0.5em] font-mono rounded-xl outline-none transition-colors ${
+                  className={`w-full h-14 pl-12 pr-4 text-center text-2xl tracking-[0.5em] font-mono rounded-full outline-none transition-colors ${
                     theme === 'dark' 
                       ? 'bg-white/5 border border-white/10 text-white placeholder:text-gray-600 focus:border-white/20 focus:bg-white/10' 
                       : 'bg-gray-50 border border-gray-200 text-gray-900 placeholder:text-gray-300 focus:border-gray-300 focus:bg-white'
@@ -178,7 +175,7 @@ export default function AuthScreen({ theme, accentColor, onLoginSuccess }: AuthS
               <button
                 type="submit"
                 disabled={isLoading || mfaCode.length !== 6}
-                className={`w-full h-12 rounded-xl font-medium text-white flex items-center justify-center gap-2 transition-all ${getAccentClass('bg')} ${getAccentClass('hover')} ${isLoading || mfaCode.length !== 6 ? 'opacity-70 cursor-not-allowed' : ''}`}
+                className={`w-full h-12 rounded-full font-medium text-white flex items-center justify-center gap-2 transition-all ${getAccentClass('bg')} ${getAccentClass('hover')} ${isLoading || mfaCode.length !== 6 ? 'opacity-70 cursor-not-allowed' : ''}`}
               >
                 {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Подтвердить'}
               </button>
@@ -192,28 +189,32 @@ export default function AuthScreen({ theme, accentColor, onLoginSuccess }: AuthS
               </button>
             </form>
           ) : (
-            <form onSubmit={handleEmailAuth} className="space-y-4">
-            {!isLogin && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                className="relative"
-              >
-                <Brain className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`} />
-                <input
-                  type="text"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="Ваше имя"
-                  required={!isLogin}
-                  className={`w-full h-12 pl-12 pr-4 rounded-xl outline-none transition-colors ${
-                    theme === 'dark' 
-                      ? 'bg-white/5 border border-white/10 text-white placeholder:text-gray-500 focus:border-white/20 focus:bg-white/10' 
-                      : 'bg-gray-50 border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-gray-300 focus:bg-white'
-                  }`}
-                />
-              </motion.div>
-            )}
+            <form onSubmit={handleEmailAuth} className="flex flex-col gap-4">
+            <AnimatePresence initial={false}>
+              {!isLogin && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0, overflow: 'hidden' }}
+                  animate={{ opacity: 1, height: 'auto', overflow: 'visible' }}
+                  exit={{ opacity: 0, height: 0, overflow: 'hidden' }}
+                  transition={{ duration: 0.3, ease: "easeInOut" }}
+                  className="relative"
+                >
+                  <User className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`} />
+                  <input
+                    type="text"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="Ваше имя"
+                    required={!isLogin}
+                    className={`w-full h-12 pl-12 pr-4 rounded-full outline-none transition-colors ${
+                      theme === 'dark' 
+                        ? 'bg-white/5 border border-white/10 text-white placeholder:text-gray-500 focus:border-white/20 focus:bg-white/10' 
+                        : 'bg-gray-50 border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-gray-300 focus:bg-white'
+                    }`}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
             <div>
               <div className="relative">
                 <Mail className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`} />
@@ -223,7 +224,7 @@ export default function AuthScreen({ theme, accentColor, onLoginSuccess }: AuthS
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Email"
                   required
-                  className={`w-full h-12 pl-12 pr-4 rounded-xl outline-none transition-colors ${
+                  className={`w-full h-12 pl-12 pr-4 rounded-full outline-none transition-colors ${
                     theme === 'dark' 
                       ? 'bg-white/5 border border-white/10 text-white placeholder:text-gray-500 focus:border-white/20 focus:bg-white/10' 
                       : 'bg-gray-50 border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-gray-300 focus:bg-white'
@@ -241,7 +242,7 @@ export default function AuthScreen({ theme, accentColor, onLoginSuccess }: AuthS
                   placeholder="Пароль"
                   required
                   minLength={6}
-                  className={`w-full h-12 pl-12 pr-4 rounded-xl outline-none transition-colors ${
+                  className={`w-full h-12 pl-12 pr-4 rounded-full outline-none transition-colors ${
                     theme === 'dark' 
                       ? 'bg-white/5 border border-white/10 text-white placeholder:text-gray-500 focus:border-white/20 focus:bg-white/10' 
                       : 'bg-gray-50 border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-gray-300 focus:bg-white'
@@ -276,7 +277,7 @@ export default function AuthScreen({ theme, accentColor, onLoginSuccess }: AuthS
             <button
               type="submit"
               disabled={isLoading || !email || !password}
-              className={`w-full h-12 rounded-xl font-medium text-white flex items-center justify-center gap-2 transition-all ${getAccentClass('bg')} ${getAccentClass('hover')} ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+              className={`w-full h-12 rounded-full font-medium text-white flex items-center justify-center gap-2 transition-all ${getAccentClass('bg')} ${getAccentClass('hover')} ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
             >
               {isLoading ? (
                 <Loader2 className="w-5 h-5 animate-spin" />

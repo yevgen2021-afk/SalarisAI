@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import localforage from 'localforage';
-import { ArrowUp, Menu, Settings, Moon, Sun, Trash2, Info, X, SquarePen, Plus, Paintbrush, ChevronLeft, Check, Square, Brain, Flag, User, LogOut, Camera, Loader2 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { ArrowUp, Menu, Settings, Trash2, Info, X, SquarePen, Plus, Paintbrush, ChevronLeft, Check, Square, Brain, AlertCircle, User, LogOut, Camera } from 'lucide-react';
+import { motion, AnimatePresence, useAnimation } from 'motion/react';
 import { Chat, Message } from './types';
 import { generateGroqResponseStream } from './services/groq';
 import ChatMessage from './components/ChatMessage';
@@ -28,6 +28,33 @@ const ACCENT_COLORS = [
   { id: 'orange', name: 'Закат', bg: 'bg-orange-500', text: 'text-orange-500', border: 'border-orange-500', shadow: 'shadow-orange-500/20', hover: 'hover:bg-orange-600' },
 ];
 
+const ColorOptionButton = ({ color, theme, accentColor, setAccentColor, setIsSettingsInteracting }: any) => {
+  const controls = useAnimation();
+  return (
+    <motion.button
+      animate={controls}
+      onTapStart={async () => {
+        setIsSettingsInteracting(true);
+        await controls.start({ scale: 0.95, transition: { duration: 0.1 } });
+        controls.start({ scale: 1, transition: { type: "spring", stiffness: 400, damping: 25 } });
+      }}
+      onTap={() => setIsSettingsInteracting(false)}
+      onTapCancel={() => setIsSettingsInteracting(false)}
+      onClick={() => setAccentColor(color.id)}
+      className={`w-full flex items-center gap-3 px-3 py-2 rounded-full transition-colors ${
+        theme === 'dark' ? 'hover:bg-white/10 active:bg-white/20' : 'hover:bg-black/5 active:bg-black/10'
+      }`}
+    >
+      <div className={`w-4 h-4 rounded-full ${color.bg} shadow-sm flex items-center justify-center`}>
+        {accentColor === color.id && <Check className="w-2.5 h-2.5 text-white" />}
+      </div>
+      <span className={`text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>
+        {color.name}
+      </span>
+    </motion.button>
+  );
+};
+
 export default function App() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [chats, setChats] = useState<Chat[]>([createNewChat()]);
@@ -39,6 +66,7 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>('light');
+  const [autoTheme, setAutoTheme] = useState<boolean>(false);
   const [accentColor, setAccentColor] = useState<string>('laguna');
   const [isGlowEnabled, setIsGlowEnabled] = useState<boolean>(true);
 
@@ -228,6 +256,11 @@ export default function App() {
   const [actionMenuView, setActionMenuView] = useState<'main' | 'model'>('main');
   const [selectedModel, setSelectedModel] = useState<'llama-3.3-70b-versatile' | 'meta-llama/llama-4-scout-17b-16e-instruct'>('meta-llama/llama-4-scout-17b-16e-instruct');
   const [isThinkingMode, setIsThinkingMode] = useState<boolean>(false);
+  
+  const stateRef = useRef({ chats, activeChatId, isLoading, selectedModel, isThinkingMode, profile });
+  useEffect(() => {
+    stateRef.current = { chats, activeChatId, isLoading, selectedModel, isThinkingMode, profile };
+  }, [chats, activeChatId, isLoading, selectedModel, isThinkingMode, profile]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -338,6 +371,7 @@ export default function App() {
         const storedChats = await localforage.getItem<Chat[]>('salaris_chats');
         const storedActiveChatId = await localforage.getItem<string>('salaris_active_chat');
         const storedTheme = await localforage.getItem<'dark' | 'light'>('salaris_theme');
+        const storedAutoTheme = await localforage.getItem<boolean>('salaris_auto_theme');
         const storedAccentColor = await localforage.getItem<string>('salaris_accent');
         const storedGlow = await localforage.getItem<boolean>('salaris_glow');
         const storedModel = await localforage.getItem<string>('salaris_model');
@@ -366,6 +400,7 @@ export default function App() {
         }
 
         if (storedTheme) setTheme(storedTheme);
+        if (storedAutoTheme !== null) setAutoTheme(storedAutoTheme);
         if (storedAccentColor) setAccentColor(storedAccentColor);
         if (storedGlow !== null) setIsGlowEnabled(storedGlow);
         if (['llama-3.3-70b-versatile', 'meta-llama/llama-4-scout-17b-16e-instruct'].includes(storedModel || '')) {
@@ -392,13 +427,14 @@ export default function App() {
       localforage.setItem('salaris_chats', chats);
       localforage.setItem('salaris_active_chat', activeChatId);
       localforage.setItem('salaris_theme', theme);
+      localforage.setItem('salaris_auto_theme', autoTheme);
       localforage.setItem('salaris_accent', accentColor);
       localforage.setItem('salaris_glow', isGlowEnabled);
       localforage.setItem('salaris_model', selectedModel);
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [chats, activeChatId, theme, accentColor, isGlowEnabled, selectedModel, isLoaded]);
+  }, [chats, activeChatId, theme, autoTheme, accentColor, isGlowEnabled, selectedModel, isLoaded]);
 
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
@@ -475,6 +511,21 @@ export default function App() {
   useEffect(() => {
     document.documentElement.className = theme;
   }, [theme]);
+
+  useEffect(() => {
+    if (!autoTheme) return;
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    
+    const handleChange = (e: MediaQueryListEvent | MediaQueryList) => {
+      setTheme(e.matches ? 'dark' : 'light');
+    };
+
+    handleChange(mediaQuery as any);
+
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, [autoTheme]);
 
   useEffect(() => {
     if (!isSettingsOpen) {
@@ -630,7 +681,7 @@ export default function App() {
     try {
       const chatHistory = activeChat ? activeChat.messages : [];
       
-      const stream = generateGroqResponseStream(userMsg, selectedModel, chatHistory);
+      const stream = generateGroqResponseStream(userMsg, selectedModel, chatHistory, profile?.display_name);
 
       let isFirstChunk = true;
       let currentTyped = '';
@@ -724,9 +775,10 @@ export default function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [input, isLoading, activeChatId, selectedModel, isThinkingMode, chats]);
+  }, [input, isLoading, activeChatId, selectedModel, isThinkingMode, chats, profile]);
 
   const handleRegenerate = useCallback(async (messageId: string) => {
+    const { chats, activeChatId, isLoading, selectedModel, profile } = stateRef.current;
     const chat = chats.find(c => c.id === activeChatId);
     if (!chat || isLoading) return;
     
@@ -761,9 +813,9 @@ export default function App() {
     const modelMessageId = Date.now().toString();
 
     try {
-      const chatHistory = activeChat ? activeChat.messages.slice(0, lastUserMsgIndex) : [];
+      const chatHistory = chat ? chat.messages.slice(0, lastUserMsgIndex) : [];
       
-      const stream = generateGroqResponseStream(userMsgContent, selectedModel, chatHistory);
+      const stream = generateGroqResponseStream(userMsgContent, selectedModel, chatHistory, profile?.display_name);
 
       let isFirstChunk = true;
       let currentTyped = '';
@@ -851,9 +903,10 @@ export default function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [chats, activeChatId, isLoading, selectedModel, isThinkingMode]);
+  }, []);
 
   const handleReport = useCallback((messageId?: string) => {
+    const { chats, activeChatId } = stateRef.current;
     if (messageId) {
       const chat = chats.find(c => c.id === activeChatId);
       const message = chat?.messages.find(m => m.id === messageId);
@@ -865,25 +918,27 @@ export default function App() {
     }
     setIsReportModalOpen(true);
     setIsSettingsOpen(false); // Close settings if opened from there
-  }, [chats, activeChatId]);
+  }, []);
 
   const handleLike = useCallback((messageId: string) => {
+    const { chats, activeChatId } = stateRef.current;
     const chat = chats.find(c => c.id === activeChatId);
     const message = chat?.messages.find(m => m.id === messageId);
     if (message) {
       setReportContext({ messageId, text: message.content, type: 'like' });
       setIsReportModalOpen(true);
     }
-  }, [chats, activeChatId]);
+  }, []);
 
   const handleDislike = useCallback((messageId: string) => {
+    const { chats, activeChatId } = stateRef.current;
     const chat = chats.find(c => c.id === activeChatId);
     const message = chat?.messages.find(m => m.id === messageId);
     if (message) {
       setReportContext({ messageId, text: message.content, type: 'dislike' });
       setIsReportModalOpen(true);
     }
-  }, [chats, activeChatId]);
+  }, []);
 
   const submitReport = async (reason: string) => {
     if (!supabase || !user) {
@@ -1052,7 +1107,7 @@ export default function App() {
         >
           {activeChat.messages.length === 0 ? (
             <AnimatePresence initial={false}>
-              <Dashboard theme={theme} onActionClick={(text) => setInput(text)} />
+              <Dashboard theme={theme} onActionClick={setInput} />
             </AnimatePresence>
           ) : (
             <div className="mt-auto flex flex-col">
@@ -1156,7 +1211,7 @@ export default function App() {
                       key="main"
                       initial={{ scale: 0, opacity: 0, z: 0 }}
                       animate={{ 
-                        scale: isActionMenuInteracting ? 0.97 : 1, 
+                        scale: isActionMenuInteracting ? 0.95 : 1, 
                         opacity: 1,
                         z: 0,
                         transition: { type: "spring", damping: 25, stiffness: 300 } 
@@ -1167,6 +1222,7 @@ export default function App() {
                     >
                       <div className="flex flex-col">
                         <motion.button
+                          whileTap={{ scale: 0.95 }}
                           onTapStart={() => setIsActionMenuInteracting(true)}
                           onTap={() => setIsActionMenuInteracting(false)}
                           onTapCancel={() => setIsActionMenuInteracting(false)}
@@ -1187,6 +1243,7 @@ export default function App() {
                         </motion.button>
 
                         <motion.button
+                          whileTap={{ scale: 0.95 }}
                           onTapStart={() => setIsActionMenuInteracting(true)}
                           onTap={() => setIsActionMenuInteracting(false)}
                           onTapCancel={() => setIsActionMenuInteracting(false)}
@@ -1222,6 +1279,7 @@ export default function App() {
                         </motion.button>
 
                         <motion.button 
+                          whileTap={{ scale: 0.95 }}
                           onTapStart={() => setIsActionMenuInteracting(true)}
                           onTap={() => setIsActionMenuInteracting(false)}
                           onTapCancel={() => setIsActionMenuInteracting(false)}
@@ -1237,7 +1295,7 @@ export default function App() {
                             Модель
                           </div>
                           <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                            {selectedModel === 'llama-3.3-70b-versatile' ? 'Osmium X' : 'Osmium'}
+                            {selectedModel === 'llama-3.3-70b-versatile' ? 'Osmium X' : 'Osmium V'}
                           </span>
                         </motion.button>
 
@@ -1248,7 +1306,7 @@ export default function App() {
                       key="model"
                       initial={{ scale: 0, opacity: 0, z: 0 }}
                       animate={{ 
-                        scale: isActionMenuInteracting ? 0.97 : 1, 
+                        scale: isActionMenuInteracting ? 0.95 : 1, 
                         opacity: 1,
                         z: 0,
                         transition: { type: "spring", damping: 25, stiffness: 300 } 
@@ -1264,7 +1322,7 @@ export default function App() {
                       <div className="flex flex-col">
                         <div className="flex items-center gap-2 px-2 pb-2">
                           <motion.button 
-                            whileTap={{ scale: 0.97 }}
+                            whileTap={{ scale: 0.95 }}
                             onClick={() => setActionMenuView('main')}
                             className={`p-2 rounded-full transition-colors ${
                               theme === 'dark' ? 'hover:bg-white/10 text-gray-400' : 'hover:bg-black/5 text-gray-500'
@@ -1278,38 +1336,40 @@ export default function App() {
                         </div>
                         
                         <motion.button 
+                          whileTap={{ scale: 0.95 }}
                           onTapStart={() => setIsActionMenuInteracting(true)}
                           onTap={() => setIsActionMenuInteracting(false)}
                           onTapCancel={() => setIsActionMenuInteracting(false)}
                           onClick={() => { setSelectedModel('meta-llama/llama-4-scout-17b-16e-instruct'); setActionMenuView('main'); }}
-                          className={`flex flex-col items-start px-4 py-2.5 rounded-full text-sm font-medium transition-colors ${
+                          className={`flex items-center justify-between px-4 py-2.5 rounded-full text-sm font-medium transition-colors ${
                             theme === 'dark' 
                               ? 'hover:bg-white/10 active:bg-white/20 text-white' 
                               : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
                           }`}
                         >
-                          <div className="flex items-center justify-between w-full">
-                            Osmium
-                            {selectedModel === 'meta-llama/llama-4-scout-17b-16e-instruct' && <Check className="w-4 h-4" />}
+                          <div className="flex flex-col items-start">
+                            <span>Osmium V</span>
+                            <span className={`text-[11px] ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>Быстрый ответ</span>
                           </div>
-                          <span className={`text-[11px] ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>Быстрый ответ</span>
+                          {selectedModel === 'meta-llama/llama-4-scout-17b-16e-instruct' && <Check className="w-4 h-4" />}
                         </motion.button>
                         <motion.button 
+                          whileTap={{ scale: 0.95 }}
                           onTapStart={() => setIsActionMenuInteracting(true)}
                           onTap={() => setIsActionMenuInteracting(false)}
                           onTapCancel={() => setIsActionMenuInteracting(false)}
                           onClick={() => { setSelectedModel('llama-3.3-70b-versatile'); setActionMenuView('main'); }}
-                          className={`flex flex-col items-start px-4 py-2.5 rounded-full text-sm font-medium transition-colors ${
+                          className={`flex items-center justify-between px-4 py-2.5 rounded-full text-sm font-medium transition-colors ${
                             theme === 'dark' 
                               ? 'hover:bg-white/10 active:bg-white/20 text-white' 
                               : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
                           }`}
                         >
-                          <div className="flex items-center justify-between w-full">
-                            Osmium X
-                            {selectedModel === 'llama-3.3-70b-versatile' && <Check className="w-4 h-4" />}
+                          <div className="flex flex-col items-start">
+                            <span>Osmium X</span>
+                            <span className={`text-[11px] ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>Подробный ответ</span>
                           </div>
-                          <span className={`text-[11px] ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>Подробный ответ</span>
+                          {selectedModel === 'llama-3.3-70b-versatile' && <Check className="w-4 h-4" />}
                         </motion.button>
                       </div>
                     </motion.div>
@@ -1339,10 +1399,11 @@ export default function App() {
                   {isThinkingMode && (
                     <motion.div 
                       key="pills-container"
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
+                      initial={{ opacity: 0, scaleY: 0.95 }}
+                      animate={{ opacity: 1, scaleY: 1 }}
+                      exit={{ opacity: 0, scaleY: 0.95 }}
                       transition={{ duration: 0.2 }}
+                      style={{ transformOrigin: 'top', willChange: 'transform, opacity' }}
                       className="overflow-hidden"
                     >
                       <div className="flex flex-wrap items-center gap-2 px-3 pt-2 pb-1.5 pointer-events-auto">
@@ -1604,7 +1665,7 @@ export default function App() {
               key="main"
               initial={{ scale: 0, opacity: 0, z: 0 }}
               animate={{ 
-                scale: isSettingsInteracting ? 0.97 : 1, 
+                scale: isSettingsInteracting ? 0.95 : 1, 
                 opacity: 1,
                 z: 0,
                 transition: { type: "spring", damping: 25, stiffness: 300 } 
@@ -1649,7 +1710,7 @@ export default function App() {
 
                 {user && (
                   <motion.button 
-                    whileTap={{ scale: 0.97 }}
+                    whileTap={{ scale: 0.95 }}
                     onTapStart={() => setIsSettingsInteracting(true)}
                     onTap={() => setIsSettingsInteracting(false)}
                     onTapCancel={() => setIsSettingsInteracting(false)}
@@ -1671,7 +1732,7 @@ export default function App() {
                 <div className={`h-px w-full my-2 ${theme === 'dark' ? 'bg-white/10' : 'bg-black/5'}`} />
 
                 <motion.button 
-                  whileTap={{ scale: 0.97 }}
+                  whileTap={{ scale: 0.95 }}
                   onTapStart={() => setIsSettingsInteracting(true)}
                   onTap={() => setIsSettingsInteracting(false)}
                   onTapCancel={() => setIsSettingsInteracting(false)}
@@ -1687,7 +1748,7 @@ export default function App() {
                 </motion.button>
                 
                 <motion.button 
-                  whileTap={{ scale: 0.97 }}
+                  whileTap={{ scale: 0.95 }}
                   onTapStart={() => setIsSettingsInteracting(true)}
                   onTap={() => setIsSettingsInteracting(false)}
                   onTapCancel={() => setIsSettingsInteracting(false)}
@@ -1708,7 +1769,7 @@ export default function App() {
               key="edit-profile"
               initial={{ scale: 0, opacity: 0, z: 0 }}
               animate={{ 
-                scale: isSettingsInteracting ? 0.97 : 1, 
+                scale: isSettingsInteracting ? 0.95 : 1, 
                 opacity: 1,
                 z: 0,
                 transition: { type: "spring", damping: 25, stiffness: 300 } 
@@ -1723,7 +1784,7 @@ export default function App() {
               <div className="flex flex-col">
                 <div className="flex items-center gap-2 mb-4 px-2">
                   <motion.button 
-                    whileTap={{ scale: 0.97 }}
+                    whileTap={{ scale: 0.95 }}
                     onTapStart={() => setIsSettingsInteracting(true)}
                     onTap={() => setIsSettingsInteracting(false)}
                     onTapCancel={() => setIsSettingsInteracting(false)}
@@ -1766,7 +1827,7 @@ export default function App() {
                         onChange={handleAvatarUpload}
                       />
                       <motion.button 
-                        whileTap={{ scale: 0.97 }}
+                        whileTap={{ scale: 0.95 }}
                         onTapStart={() => setIsSettingsInteracting(true)}
                         onTap={() => setIsSettingsInteracting(false)}
                         onTapCancel={() => setIsSettingsInteracting(false)}
@@ -1800,7 +1861,7 @@ export default function App() {
                   </div>
 
                   <motion.button 
-                    whileTap={{ scale: 0.97 }}
+                    whileTap={{ scale: 0.95 }}
                     onTapStart={() => setIsSettingsInteracting(true)}
                     onTap={() => setIsSettingsInteracting(false)}
                     onTapCancel={() => setIsSettingsInteracting(false)}
@@ -1815,7 +1876,7 @@ export default function App() {
 
                 <div className="flex flex-col">
                   <motion.button 
-                    whileTap={{ scale: 0.97 }}
+                    whileTap={{ scale: 0.95 }}
                     onTapStart={() => setIsSettingsInteracting(true)}
                     onTap={() => setIsSettingsInteracting(false)}
                     onTapCancel={() => setIsSettingsInteracting(false)}
@@ -1827,7 +1888,7 @@ export default function App() {
                   </motion.button>
 
                   <motion.button 
-                    whileTap={{ scale: 0.97 }}
+                    whileTap={{ scale: 0.95 }}
                     onTapStart={() => setIsSettingsInteracting(true)}
                     onTap={() => setIsSettingsInteracting(false)}
                     onTapCancel={() => setIsSettingsInteracting(false)}
@@ -1845,7 +1906,7 @@ export default function App() {
               key="customization"
               initial={{ scale: 0, opacity: 0, z: 0 }}
               animate={{ 
-                scale: isSettingsInteracting ? 0.97 : 1, 
+                scale: isSettingsInteracting ? 0.95 : 1, 
                 opacity: 1,
                 z: 0,
                 transition: { type: "spring", damping: 25, stiffness: 300 } 
@@ -1860,7 +1921,7 @@ export default function App() {
               <div className="flex flex-col">
                 <div className="flex items-center gap-2 mb-4 px-2">
                   <motion.button 
-                    whileTap={{ scale: 0.97 }}
+                    whileTap={{ scale: 0.95 }}
                     onTapStart={() => setIsSettingsInteracting(true)}
                     onTap={() => setIsSettingsInteracting(false)}
                     onTapCancel={() => setIsSettingsInteracting(false)}
@@ -1884,11 +1945,13 @@ export default function App() {
                     }`}
                   >
                     <motion.button
-                      whileTap={{ scale: 0.97 }}
+                      whileTap={{ scale: 0.95 }}
                       onTapStart={() => setIsSettingsInteracting(true)}
                       onTap={() => setIsSettingsInteracting(false)}
                       onTapCancel={() => setIsSettingsInteracting(false)}
-                      onClick={() => setIsColorExpanded(!isColorExpanded)}
+                      onClick={() => {
+                        setIsColorExpanded(!isColorExpanded);
+                      }}
                       className={`w-full flex items-center justify-between px-4 py-3 rounded-full transition-colors ${
                          theme === 'dark' ? 'active:bg-white/10' : 'active:bg-black/10'
                       }`}
@@ -1899,74 +1962,69 @@ export default function App() {
                       <div className={`w-5 h-5 rounded-full ${getAccentClass('bg')} shadow-sm`} />
                     </motion.button>
 
-                    <motion.div
+                    <AnimatePresence 
                       initial={false}
-                      animate={{ 
-                        height: isColorExpanded ? 'auto' : 0,
-                        opacity: isColorExpanded ? 1 : 0
-                      }}
-                      transition={{ duration: 0.3, ease: "easeInOut" }}
-                      className="overflow-hidden"
                     >
-                      <div className="px-2 pb-2 flex flex-col">
-                        {ACCENT_COLORS.map((color) => (
-                          <motion.button
-                            key={color.id}
-                            whileTap={{ scale: 0.97 }}
-                            onTapStart={() => setIsSettingsInteracting(true)}
-                            onTap={() => setIsSettingsInteracting(false)}
-                            onTapCancel={() => setIsSettingsInteracting(false)}
-                            onClick={() => setAccentColor(color.id)}
-                            className={`w-full flex items-center gap-3 px-3 py-2 rounded-full transition-colors ${
-                              theme === 'dark' ? 'hover:bg-white/10 active:bg-white/20' : 'hover:bg-black/5 active:bg-black/10'
-                            }`}
-                          >
-                            <div className={`w-4 h-4 rounded-full ${color.bg} shadow-sm flex items-center justify-center`}>
-                              {accentColor === color.id && <Check className="w-2.5 h-2.5 text-white" />}
-                            </div>
-                            <span className={`text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>
-                              {color.name}
-                            </span>
-                          </motion.button>
-                        ))}
-                      </div>
-                    </motion.div>
+                      {isColorExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+                          className="overflow-hidden"
+                        >
+                          <div className="px-2 pb-2 flex flex-col">
+                            {ACCENT_COLORS.map((color) => (
+                              <ColorOptionButton
+                                key={color.id}
+                                color={color}
+                                theme={theme}
+                                accentColor={accentColor}
+                                setAccentColor={setAccentColor}
+                                setIsSettingsInteracting={setIsSettingsInteracting}
+                              />
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
 
                   {/* Separator */}
-                  <AnimatePresence>
+                  <AnimatePresence initial={false}>
                     {isColorExpanded && (
                       <motion.div 
-                        initial={{ opacity: 0, height: 0, marginTop: 0, marginBottom: 0 }}
-                        animate={{ opacity: 1, height: 1, marginTop: 8, marginBottom: 8 }}
-                        exit={{ opacity: 0, height: 0, marginTop: 0, marginBottom: 0 }}
+                        initial={{ height: 0, opacity: 0, marginTop: 0, marginBottom: 0 }}
+                        animate={{ height: 1, opacity: 1, marginTop: 8, marginBottom: 8 }}
+                        exit={{ height: 0, opacity: 0, marginTop: 0, marginBottom: 0 }}
+                        transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
                         className={`w-full ${theme === 'dark' ? 'bg-white/10' : 'bg-black/5'}`} 
                       />
                     )}
                   </AnimatePresence>
 
-                  {/* Dark Theme Toggle */}
+                  {/* Auto Theme Toggle */}
                   <motion.button 
-                    whileTap={{ scale: 0.97 }}
+                    whileTap={{ scale: 0.95 }}
                     onTapStart={() => setIsSettingsInteracting(true)}
                     onTap={() => setIsSettingsInteracting(false)}
                     onTapCancel={() => setIsSettingsInteracting(false)}
-                    onClick={toggleTheme}
+                    onClick={() => setAutoTheme(!autoTheme)}
                     className={`w-full rounded-full px-4 py-3 flex items-center justify-between transition-colors cursor-pointer ${
                       theme === 'dark' ? 'hover:bg-white/5 active:bg-white/10' : 'hover:bg-black/5 active:bg-black/10'
                     }`}
                   >
                     <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                      Темная тема
+                      Системная тема
                     </span>
                     <div
                       className={`w-10 h-6 rounded-full transition-colors relative flex items-center ${
-                        theme === 'dark' ? getAccentClass('bg') : 'bg-gray-300'
+                        autoTheme ? getAccentClass('bg') : (theme === 'dark' ? 'bg-white/20' : 'bg-gray-300')
                       }`}
                     >
                       <motion.div 
                         animate={{ 
-                          x: theme === 'dark' ? 20 : 4,
+                          x: autoTheme ? 20 : 4,
                           width: 16,
                           backgroundColor: "rgba(255,255,255,1)",
                           backdropFilter: "blur(0px)"
@@ -1977,9 +2035,53 @@ export default function App() {
                     </div>
                   </motion.button>
 
+                  {/* Dark Theme Toggle */}
+                  <AnimatePresence initial={false}>
+                    {!autoTheme && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2, ease: "easeInOut" }}
+                        className="overflow-hidden"
+                      >
+                        <motion.button 
+                          whileTap={{ scale: 0.95 }}
+                          onTapStart={() => setIsSettingsInteracting(true)}
+                          onTap={() => setIsSettingsInteracting(false)}
+                          onTapCancel={() => setIsSettingsInteracting(false)}
+                          onClick={toggleTheme}
+                          className={`w-full rounded-full px-4 py-3 flex items-center justify-between transition-colors cursor-pointer ${
+                            theme === 'dark' ? 'hover:bg-white/5 active:bg-white/10' : 'hover:bg-black/5 active:bg-black/10'
+                          }`}
+                        >
+                          <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                            Темная тема
+                          </span>
+                          <div
+                            className={`w-10 h-6 rounded-full transition-colors relative flex items-center ${
+                              theme === 'dark' ? getAccentClass('bg') : 'bg-gray-300'
+                            }`}
+                          >
+                            <motion.div 
+                              animate={{ 
+                                x: theme === 'dark' ? 20 : 4,
+                                width: 16,
+                                backgroundColor: "rgba(255,255,255,1)",
+                                backdropFilter: "blur(0px)"
+                              }}
+                              transition={{ type: "spring", damping: 20, stiffness: 300 }}
+                              className="absolute left-0 h-4 rounded-full shadow-sm"
+                            />
+                          </div>
+                        </motion.button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
                   {/* Glow Toggle */}
                   <motion.button 
-                    whileTap={{ scale: 0.97 }}
+                    whileTap={{ scale: 0.95 }}
                     onTapStart={() => setIsSettingsInteracting(true)}
                     onTap={() => setIsSettingsInteracting(false)}
                     onTapCancel={() => setIsSettingsInteracting(false)}
@@ -2016,7 +2118,7 @@ export default function App() {
               key="about"
               initial={{ scale: 0, opacity: 0, z: 0 }}
               animate={{ 
-                scale: isSettingsInteracting ? 0.97 : 1, 
+                scale: isSettingsInteracting ? 0.95 : 1, 
                 opacity: 1,
                 z: 0,
                 transition: { type: "spring", damping: 25, stiffness: 300 } 
@@ -2031,7 +2133,7 @@ export default function App() {
               <div className="flex flex-col">
                 <div className="flex items-center gap-2 mb-4 px-2">
                   <motion.button 
-                    whileTap={{ scale: 0.97 }}
+                    whileTap={{ scale: 0.95 }}
                     onTapStart={() => setIsSettingsInteracting(true)}
                     onTap={() => setIsSettingsInteracting(false)}
                     onTapCancel={() => setIsSettingsInteracting(false)}
@@ -2051,14 +2153,14 @@ export default function App() {
                     Версия
                   </span>
                   <span className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>
-                    1.1
+                    1.2
                   </span>
                 </div>
 
                 <div className={`h-px w-full my-2 ${theme === 'dark' ? 'bg-white/10' : 'bg-black/5'}`} />
 
                 <motion.button 
-                  whileTap={{ scale: 0.97 }}
+                  whileTap={{ scale: 0.95 }}
                   onTapStart={() => setIsSettingsInteracting(true)}
                   onTap={() => setIsSettingsInteracting(false)}
                   onTapCancel={() => setIsSettingsInteracting(false)}
@@ -2070,14 +2172,14 @@ export default function App() {
                 </motion.button>
 
                 <motion.button
-                  whileTap={{ scale: 0.97 }}
+                  whileTap={{ scale: 0.95 }}
                   onTapStart={() => setIsSettingsInteracting(true)}
                   onTap={() => setIsSettingsInteracting(false)}
                   onTapCancel={() => setIsSettingsInteracting(false)}
                   onClick={() => handleReport()}
                   className="w-full flex items-center gap-3 px-4 py-3 rounded-full text-sm font-medium transition-colors text-red-500 hover:bg-red-500/10 active:bg-red-500/20"
                 >
-                  <Flag className="w-4 h-4" />
+                  <AlertCircle className="w-4 h-4" />
                   Пожаловаться
                 </motion.button>
               </div>

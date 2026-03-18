@@ -1,10 +1,10 @@
-import React, { useState, useRef, useEffect, memo } from 'react';
+import React, { useState, useRef, useEffect, memo, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { ThumbsUp, ThumbsDown, Copy, Check, RefreshCw, Flag } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, Copy, Check, RefreshCw, AlertCircle } from 'lucide-react';
 
 interface ChatMessageProps {
   id: string;
@@ -81,6 +81,65 @@ const ChatMessage = memo(({ id, role, content, theme, isTyping, accentColor, isG
     }
   };
 
+  const markdownComponents = useMemo(() => ({
+    img: ({node, ...props}: any) => {
+      if (!props.src) return null;
+      return (
+        <img 
+          className="rounded-xl max-w-full h-auto my-2 border border-white/10 shadow-sm block" 
+          {...props} 
+          onError={(e) => {
+            e.currentTarget.style.display = 'none';
+          }}
+        />
+      );
+    },
+    p: ({node, ...props}: any) => <p className={`mb-3 last:mb-0 leading-relaxed text-[16px] font-medium ${isUser ? 'text-white' : (theme === 'dark' ? 'text-gray-100' : 'text-gray-800')}`} {...props} />,
+    a: ({node, ...props}: any) => <a className={`${isUser ? 'text-white underline' : 'text-pink-400 hover:text-pink-300 underline'} underline-offset-4 transition-colors text-[16px]`} {...props} />,
+    strong: ({node, ...props}: any) => <strong className={`font-bold ${isUser ? 'text-white' : (theme === 'dark' ? 'text-white' : 'text-gray-900')}`} {...props} />,
+    ul: ({node, ...props}: any) => <ul className="list-disc pl-6 mb-3 space-y-2 text-[16px]" {...props} />,
+    ol: ({node, ...props}: any) => <ol className="list-decimal pl-6 mb-3 space-y-2 text-[16px]" {...props} />,
+    li: ({node, ...props}: any) => <li className={`leading-relaxed text-[16px] font-medium ${isUser ? 'text-white' : (theme === 'dark' ? 'text-gray-100' : 'text-gray-800')}`} {...props} />,
+    blockquote: ({node, ...props}: any) => <blockquote className={`border-l-4 pl-4 italic my-3 ${isUser ? 'border-white/50 text-white/90' : (theme === 'dark' ? 'border-gray-500 text-gray-300' : 'border-gray-400 text-gray-600')}`} {...props} />,
+    code: ({node, className, children, ...props}: any) => {
+      const match = /language-(\w+)/.exec(className || '')
+      const isInline = !match && !className;
+      
+      if (!isInline && match) {
+        return (
+          <div className="my-4 rounded-xl overflow-hidden border border-white/10 shadow-sm">
+            <div className="flex items-center justify-between px-4 py-2 bg-black/20 text-xs text-gray-400 font-mono border-b border-white/10">
+              <span>{match[1]}</span>
+            </div>
+            <SyntaxHighlighter
+              style={theme === 'dark' ? vscDarkPlus : vs}
+              language={match[1]}
+              PreTag="div"
+              customStyle={{ margin: 0, borderRadius: 0, background: theme === 'dark' ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.5)' }}
+            >
+              {String(children).replace(/\n$/, '')}
+            </SyntaxHighlighter>
+          </div>
+        );
+      }
+      
+      return (
+        <code className={`${isUser ? 'bg-black/10 text-white' : (theme === 'dark' ? 'bg-white/10 text-pink-300' : 'bg-black/5 text-pink-600')} px-1.5 py-0.5 rounded-md text-sm font-mono`} {...props}>
+          {children}
+        </code>
+      )
+    },
+    table: ({node, ...props}: any) => (
+      <div className="overflow-x-auto my-4 rounded-xl border border-white/10">
+        <table className="w-full text-left border-collapse text-sm" {...props} />
+      </div>
+    ),
+    thead: ({node, ...props}: any) => <thead className={theme === 'dark' ? 'bg-white/5' : 'bg-black/5'} {...props} />,
+    th: ({node, ...props}: any) => <th className={`p-3 font-semibold border-b ${theme === 'dark' ? 'border-white/10 text-gray-200' : 'border-black/10 text-gray-800'}`} {...props} />,
+    td: ({node, ...props}: any) => <td className={`p-3 border-b ${theme === 'dark' ? 'border-white/5 text-gray-300' : 'border-black/5 text-gray-700'}`} {...props} />,
+    tr: ({node, ...props}: any) => <tr className={theme === 'dark' ? 'hover:bg-white/5 transition-colors' : 'hover:bg-black/5 transition-colors'} {...props} />
+  }), [isUser, theme]);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20, scale: 0.98 }}
@@ -125,65 +184,8 @@ const ChatMessage = memo(({ id, role, content, theme, isTyping, accentColor, isG
                 <ReactMarkdown 
                   urlTransform={(url) => url}
                   remarkPlugins={[remarkGfm]}
-                  components={{
-                    img: ({node, ...props}) => {
-                      if (!props.src) return null;
-                      return (
-                        <img 
-                          className="rounded-xl max-w-full h-auto my-2 border border-white/10 shadow-sm block" 
-                          {...props} 
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                          }}
-                        />
-                      );
-                    },
-                p: ({node, ...props}) => <p className={`mb-3 last:mb-0 leading-relaxed text-[16px] font-medium ${isUser ? 'text-white' : (theme === 'dark' ? 'text-gray-100' : 'text-gray-800')}`} {...props} />,
-                a: ({node, ...props}) => <a className={`${isUser ? 'text-white underline' : 'text-pink-400 hover:text-pink-300 underline'} underline-offset-4 transition-colors text-[16px]`} {...props} />,
-                strong: ({node, ...props}) => <strong className={`font-bold ${isUser ? 'text-white' : (theme === 'dark' ? 'text-white' : 'text-gray-900')}`} {...props} />,
-                ul: ({node, ...props}) => <ul className="list-disc pl-6 mb-3 space-y-2 text-[16px]" {...props} />,
-                ol: ({node, ...props}) => <ol className="list-decimal pl-6 mb-3 space-y-2 text-[16px]" {...props} />,
-                li: ({node, ...props}) => <li className={`leading-relaxed text-[16px] font-medium ${isUser ? 'text-white' : (theme === 'dark' ? 'text-gray-100' : 'text-gray-800')}`} {...props} />,
-                blockquote: ({node, ...props}) => <blockquote className={`border-l-4 pl-4 italic my-3 ${isUser ? 'border-white/50 text-white/90' : (theme === 'dark' ? 'border-gray-500 text-gray-300' : 'border-gray-400 text-gray-600')}`} {...props} />,
-                code: ({node, className, children, ...props}) => {
-                  const match = /language-(\w+)/.exec(className || '')
-                  const isInline = !match && !className;
-                  
-                  if (!isInline && match) {
-                    return (
-                      <div className="my-4 rounded-xl overflow-hidden border border-white/10 shadow-sm">
-                        <div className="flex items-center justify-between px-4 py-2 bg-black/20 text-xs text-gray-400 font-mono border-b border-white/10">
-                          <span>{match[1]}</span>
-                        </div>
-                        <SyntaxHighlighter
-                          style={theme === 'dark' ? vscDarkPlus : vs}
-                          language={match[1]}
-                          PreTag="div"
-                          customStyle={{ margin: 0, borderRadius: 0, background: theme === 'dark' ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.5)' }}
-                        >
-                          {String(children).replace(/\n$/, '')}
-                        </SyntaxHighlighter>
-                      </div>
-                    );
-                  }
-                  
-                  return (
-                    <code className={`${isUser ? 'bg-black/10 text-white' : (theme === 'dark' ? 'bg-white/10 text-pink-300' : 'bg-black/5 text-pink-600')} px-1.5 py-0.5 rounded-md text-sm font-mono`} {...props}>
-                      {children}
-                    </code>
-                  )
-                },
-                table: ({node, ...props}) => (
-                  <div className="overflow-x-auto my-4 rounded-xl border border-white/10">
-                    <table className="w-full text-left border-collapse text-sm" {...props} />
-                  </div>
-                ),
-                thead: ({node, ...props}) => <thead className={theme === 'dark' ? 'bg-white/5' : 'bg-black/5'} {...props} />,
-                th: ({node, ...props}) => <th className={`p-3 font-semibold border-b ${theme === 'dark' ? 'border-white/10 text-gray-200' : 'border-black/10 text-gray-800'}`} {...props} />,
-                td: ({node, ...props}) => <td className={`p-3 border-b ${theme === 'dark' ? 'border-white/5 text-gray-300' : 'border-black/5 text-gray-700'}`} {...props} />,
-                tr: ({node, ...props}) => <tr className={theme === 'dark' ? 'hover:bg-white/5 transition-colors' : 'hover:bg-black/5 transition-colors'} {...props} />
-              }}
-            >
+                  components={markdownComponents}
+                >
               {content}
             </ReactMarkdown>
           </motion.div>
@@ -230,7 +232,7 @@ const ChatMessage = memo(({ id, role, content, theme, isTyping, accentColor, isG
                   className={`p-2 rounded-full transition-colors ${theme === 'dark' ? 'hover:bg-white/10 text-gray-400 hover:text-red-400' : 'hover:bg-black/5 text-gray-500 hover:text-red-500'}`}
                   title="Пожаловаться"
                 >
-                  <Flag className="w-4 h-4" />
+                  <AlertCircle className="w-4 h-4" />
                 </button>
               )}
             </div>

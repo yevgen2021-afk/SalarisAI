@@ -12,6 +12,26 @@
     <link rel="apple-touch-icon" href="/icon.svg" />
     <link rel="manifest" href="/manifest.json" />
     <title>SalarisAI</title>
+    <script>
+      (function() {
+        try {
+          var mode = localStorage.getItem('salaris_theme_mode');
+          var isDark = false;
+          if (mode === 'dark') {
+            isDark = true;
+          } else if (mode === 'light') {
+            isDark = false;
+          } else {
+            isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          }
+          if (isDark) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.add('light');
+          }
+        } catch (e) {}
+      })();
+    </script>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@700&display=swap');
       
@@ -34,10 +54,8 @@
         z-index: 9999;
       }
 
-      @media (prefers-color-scheme: dark) {
-        body, #splash-screen {
-          background-color: #0a0a0a;
-        }
+      html.dark body, html.dark #splash-screen {
+        background-color: #0a0a0a;
       }
 
       .splash-logo {
@@ -49,10 +67,8 @@
         animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
       }
 
-      @media (prefers-color-scheme: dark) {
-        .splash-logo {
-          color: #ffffff;
-        }
+      html.dark .splash-logo {
+        color: #ffffff;
       }
 
       .splash-logo span {

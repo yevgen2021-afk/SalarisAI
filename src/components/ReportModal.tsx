@@ -61,19 +61,19 @@ export default function ReportModal({ isOpen, onClose, onSubmit, theme, isSubmit
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            style={{ willChange: "opacity" }}
-            className="absolute inset-0 bg-black/10 backdrop-blur-[2px]"
+            style={{ willChange: "opacity, backdrop-filter" }}
+            className="absolute inset-0 bg-black/20 backdrop-blur-[2px]"
           />
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
             transition={{ type: "spring", damping: 25, stiffness: 500, mass: 0.8 }}
-            style={{ willChange: "transform, opacity" }}
-            className={`relative w-full max-w-[400px] rounded-[2rem] overflow-hidden shadow-[0_16px_40px_rgba(0,0,0,0.2)] border ${
+            style={{ willChange: "transform, opacity, backdrop-filter" }}
+            className={`relative w-full max-w-[400px] rounded-[2rem] overflow-hidden shadow-[0_16px_40px_rgba(0,0,0,0.2)] border backdrop-blur-xl ${
               theme === 'dark' 
-                ? 'bg-[#1a1a1a] border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]' 
-                : 'bg-white border-gray-200/50 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]'
+                ? 'bg-[#1a1a1a]/80 border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]' 
+                : 'bg-white/80 border-gray-200/50 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]'
             }`}
           >
             <div className="p-6">

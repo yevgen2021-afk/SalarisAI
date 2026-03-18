@@ -86,9 +86,9 @@ const Sidebar = React.memo(({
             {!isSearchFocused && (
               <motion.button 
                 layout
-                initial={{ opacity: 0, scale: 0, width: 0, marginLeft: 0 }}
-                animate={{ opacity: 1, scale: 1, width: 44, marginLeft: 8 }}
-                exit={{ opacity: 0, scale: 0, width: 0, marginLeft: 0 }}
+                initial={{ opacity: 0, scale: 0 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0 }}
                 whileHover={{ scale: 1.15 }}
                 whileTap={{ scale: 1.1 }}
                 transition={{ 
@@ -96,9 +96,9 @@ const Sidebar = React.memo(({
                   ease: "easeInOut",
                   scale: { type: "spring", stiffness: 500, damping: 30 }
                 }}
-                style={{ willChange: "width, transform, opacity, margin" }}
+                style={{ willChange: "transform, opacity" }}
                 onClick={handleNewChat}
-                className={`h-11 flex items-center justify-center rounded-full shadow-md border flex-shrink-0 transition-colors overflow-hidden ${theme === 'dark' ? 'bg-[#1a1a1a] border-white/10 text-white hover:bg-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]' : 'bg-white border-gray-200/50 text-black hover:bg-gray-50 shadow-[0_4px_15px_rgba(0,0,0,0.05)]'}`}
+                className={`w-[44px] ml-2 h-11 flex items-center justify-center rounded-full shadow-md border flex-shrink-0 transition-colors overflow-hidden ${theme === 'dark' ? 'bg-[#1a1a1a] border-white/10 text-white hover:bg-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]' : 'bg-white border-gray-200/50 text-black hover:bg-gray-50 shadow-[0_4px_15px_rgba(0,0,0,0.05)]'}`}
               >
                 <SquarePen className="w-[18px] h-[18px] flex-shrink-0" />
               </motion.button>

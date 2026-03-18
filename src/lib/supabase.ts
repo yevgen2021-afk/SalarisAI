@@ -19,10 +19,3 @@ export const supabase = supabaseUrl && supabaseAnonKey
       }
     })
   : null;
-
-if (supabase) {
-  supabase.auth.getSession().then(({ data, error }) => {
-    if (error) console.error('Supabase init error:', error);
-    else console.log('Supabase initialized successfully');
-  });
-}

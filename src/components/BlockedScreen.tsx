@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Flag, LogOut } from 'lucide-react';
+import { AlertCircle, LogOut } from 'lucide-react';
 
 interface BlockedScreenProps {
   theme: 'dark' | 'light';
@@ -18,7 +18,7 @@ export default function BlockedScreen({ theme, onLogout }: BlockedScreenProps) {
         } shadow-2xl`}
       >
         <div className="w-20 h-20 bg-red-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
-          <Flag className="w-10 h-10 text-red-500" />
+          <AlertCircle className="w-10 h-10 text-red-500" />
         </div>
         <h2 className={`text-2xl font-bold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
           Доступ ограничен
