@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Brain, Mail, Lock, ArrowRight, Loader2, User } from 'lucide-react';
+import { Mail, Lock, ArrowRight, Loader2, User } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface AuthScreenProps {

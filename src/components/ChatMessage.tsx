@@ -230,7 +230,7 @@ const ChatMessage = memo(({ id, role, content, theme, isTyping, accentColor, isG
                 <button 
                   onClick={() => onReport(id)}
                   className={`p-2 rounded-full transition-colors ${theme === 'dark' ? 'hover:bg-white/10 text-gray-400 hover:text-red-400' : 'hover:bg-black/5 text-gray-500 hover:text-red-500'}`}
-                  title="Пожаловаться"
+                  title="Сообщить об ошибке"
                 >
                   <AlertCircle className="w-4 h-4" />
                 </button>

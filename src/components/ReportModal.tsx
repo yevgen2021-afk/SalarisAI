@@ -18,7 +18,7 @@ export default function ReportModal({ isOpen, onClose, onSubmit, theme, isSubmit
     switch (type) {
       case 'like': return 'Расскажите, что вам понравилось?';
       case 'dislike': return 'Расскажите, что вам не понравилось?';
-      default: return 'Пожаловаться';
+      default: return 'Сообщить об ошибке';
     }
   };
 
@@ -34,7 +34,7 @@ export default function ReportModal({ isOpen, onClose, onSubmit, theme, isSubmit
     switch (type) {
       case 'like': return 'Ваш отзыв поможет нам сделать ответы лучше.';
       case 'dislike': return 'Мы изучим этот случай, чтобы исправить ошибки в будущем.';
-      default: return 'Опишите проблему. Если жалоба на сообщение, мы автоматически прикрепим контекст переписки.';
+      default: return 'Опишите проблему. Если вы сообщаете об ошибке в сообщении, мы автоматически прикрепим контекст переписки.';
     }
   };
 

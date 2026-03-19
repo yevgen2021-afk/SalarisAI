@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import localforage from 'localforage';
-import { ArrowUp, Menu, Settings, Trash2, Info, X, SquarePen, Plus, Paintbrush, ChevronLeft, Check, Square, Brain, AlertCircle, User, LogOut, Camera } from 'lucide-react';
+import { ArrowUp, ArrowDown, Menu, Settings, Trash2, Info, X, SquarePen, Plus, Paintbrush, ChevronLeft, Check, Square, AlertCircle, User, LogOut, Camera, Lightbulb, FlaskConical } from 'lucide-react';
 import { motion, AnimatePresence, useAnimation } from 'motion/react';
 import { Chat, Message } from './types';
 import { generateGroqResponseStream } from './services/groq';
@@ -28,7 +28,7 @@ const ACCENT_COLORS = [
   { id: 'orange', name: 'Закат', bg: 'bg-orange-500', text: 'text-orange-500', border: 'border-orange-500', shadow: 'shadow-orange-500/20', hover: 'hover:bg-orange-600' },
 ];
 
-const ColorOptionButton = ({ color, theme, accentColor, setAccentColor, setIsSettingsInteracting }: any) => {
+const ColorOptionButton = ({ color, theme, accentColor, setAccentColor, setIsSettingsInteracting, setSettingsView }: any) => {
   const controls = useAnimation();
   return (
     <motion.button
@@ -40,17 +40,23 @@ const ColorOptionButton = ({ color, theme, accentColor, setAccentColor, setIsSet
       }}
       onTap={() => setIsSettingsInteracting(false)}
       onTapCancel={() => setIsSettingsInteracting(false)}
-      onClick={() => setAccentColor(color.id)}
-      className={`w-full flex items-center gap-3 px-3 py-2 rounded-full transition-colors ${
-        theme === 'dark' ? 'hover:bg-white/10 active:bg-white/20' : 'hover:bg-black/5 active:bg-black/10'
+      onClick={() => {
+        setAccentColor(color.id);
+        setSettingsView('customization');
+      }}
+      className={`w-full flex items-center justify-between px-4 py-3 rounded-full transition-colors ${
+        theme === 'dark' 
+          ? 'hover:bg-white/10 active:bg-white/20 text-white' 
+          : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
       }`}
     >
-      <div className={`w-4 h-4 rounded-full ${color.bg} shadow-sm flex items-center justify-center`}>
-        {accentColor === color.id && <Check className="w-2.5 h-2.5 text-white" />}
+      <div className="flex items-center gap-3">
+        <div className={`w-5 h-5 rounded-full ${color.bg} shadow-sm`} />
+        <span className="text-sm font-medium">
+          {color.name}
+        </span>
       </div>
-      <span className={`text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>
-        {color.name}
-      </span>
+      {accentColor === color.id && <Check className="w-4 h-4" />}
     </motion.button>
   );
 };
@@ -76,12 +82,20 @@ export default function App() {
   const [isBanned, setIsBanned] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
-  const [settingsView, setSettingsView] = useState<'main' | 'customization' | 'about' | 'account' | 'edit-profile'>('main');
-  const [isColorExpanded, setIsColorExpanded] = useState(false);
+  const [settingsView, setSettingsView] = useState<'main' | 'customization' | 'about' | 'account' | 'edit-profile' | 'color-selection'>('main');
   const [isSettingsInteracting, setIsSettingsInteracting] = useState(false);
   const [profile, setProfile] = useState<{ display_name?: string, avatar_url?: string } | null>(null);
   const [tempName, setTempName] = useState('');
 
+
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth <= 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const fetchProfile = useCallback(async () => {
     if (!supabase || !user) return;
@@ -263,6 +277,7 @@ export default function App() {
   }, [chats, activeChatId, isLoading, selectedModel, isThinkingMode, profile]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const stopGenerationRef = useRef<boolean>(false);
 
@@ -469,9 +484,11 @@ export default function App() {
     const isLeftSwipe = distance > 50;
     const isRightSwipe = distance < -50;
 
-    if (isRightSwipe && touchStartX.current < 40) {
+    // Right swipe opens sidebar (from anywhere)
+    if (isRightSwipe && !isSidebarOpen) {
       setIsSidebarOpen(true);
     }
+    // Left swipe closes sidebar
     if (isLeftSwipe && isSidebarOpen) {
       setIsSidebarOpen(false);
     }
@@ -532,7 +549,6 @@ export default function App() {
       // Reset settings view when closed, after a small delay to allow exit animation
       const timer = setTimeout(() => {
         setSettingsView('main');
-        setIsColorExpanded(false);
       }, 200);
       return () => clearTimeout(timer);
     }
@@ -556,6 +572,7 @@ export default function App() {
     // If user scrolls up more than 150px from the bottom, they are manually scrolling
     const isAtBottom = scrollHeight - scrollTop - clientHeight < 150;
     isUserScrolling.current = !isAtBottom;
+    setShowScrollToBottom(!isAtBottom);
   }, []);
 
   const scrollToBottom = useCallback(() => {
@@ -642,6 +659,10 @@ export default function App() {
 
   const handleSend = useCallback(async () => {
     if ((!input.trim() && selectedFiles.length === 0) || isLoading) return;
+
+    // Reset manual scroll when sending a message
+    isUserScrolling.current = false;
+    setShowScrollToBottom(false);
 
     const userMsg = input.trim();
     const currentThinkingMode = isThinkingMode;
@@ -782,6 +803,10 @@ export default function App() {
     const chat = chats.find(c => c.id === activeChatId);
     if (!chat || isLoading) return;
     
+    // Reset manual scroll when regenerating
+    isUserScrolling.current = false;
+    setShowScrollToBottom(false);
+
     const msgIndex = chat.messages.findIndex(m => m.id === messageId);
     if (msgIndex <= 0) return;
     
@@ -995,17 +1020,9 @@ export default function App() {
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      className={`flex h-screen ${theme === 'dark' ? 'bg-[#050505] text-white' : 'bg-[#f8f9fa] text-gray-900'} font-sans selection:bg-red-500/30 overflow-hidden transition-colors duration-500 relative`}
+      className={`flex h-screen ${theme === 'dark' ? 'bg-[#050505] text-white' : 'bg-white text-gray-900'} font-sans selection:bg-red-500/30 overflow-hidden transition-colors duration-500 relative`}
     >
       
-      {/* Ambient Glow Background */}
-      <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-[#ff0080] ambient-blob animate-[ambient-blob-1_20s_ease-in-out_infinite]"></div>
-        <div className="absolute top-[40%] right-[-10%] w-[40vw] h-[40vw] bg-[#8000ff] ambient-blob animate-[ambient-blob-2_25s_ease-in-out_infinite]"></div>
-        <div className="absolute bottom-[-10%] left-[20%] w-[60vw] h-[60vw] bg-[#0080ff] ambient-blob animate-[ambient-blob-3_22s_ease-in-out_infinite]"></div>
-        <div className="absolute top-[10%] right-[20%] w-[30vw] h-[30vw] bg-[#00ff80] ambient-blob animate-[ambient-blob-1_28s_ease-in-out_infinite_reverse]"></div>
-      </div>
-
       <Sidebar 
         isSidebarOpen={isSidebarOpen}
         setIsSidebarOpen={setIsSidebarOpen}
@@ -1022,10 +1039,56 @@ export default function App() {
         deleteChat={deleteChat}
         setIsLoading={setIsLoading}
         editingChatId={editingChatId}
+        isMobile={isMobile}
       />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 relative z-10">
+      <motion.div 
+        animate={{ 
+          x: isSidebarOpen ? (isMobile ? '70vw' : '288px') : 0,
+          borderTopLeftRadius: isSidebarOpen ? '32px' : '0px',
+          borderBottomLeftRadius: isSidebarOpen ? '32px' : '0px',
+          borderLeftColor: isSidebarOpen 
+            ? (theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)') 
+            : 'rgba(0, 0, 0, 0)',
+        }}
+        transition={{ 
+          type: "spring", 
+          damping: 40, 
+          stiffness: 400,
+          mass: 1,
+          restDelta: 0.001
+        }}
+        style={{ willChange: 'transform, border-radius' }}
+        className={`flex-1 flex flex-col min-w-0 relative z-10 overflow-hidden border-l shadow-2xl ${theme === 'dark' ? 'bg-[#050505]' : 'bg-[#f8f9fa]'}`}
+      >
+        {/* Ambient Glow Background - Moved inside to clip with rounded corners and move with content */}
+        <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-[#ff0080] ambient-blob animate-[ambient-blob-1_20s_ease-in-out_infinite]"></div>
+          <div className="absolute top-[40%] right-[-10%] w-[40vw] h-[40vw] bg-[#8000ff] ambient-blob animate-[ambient-blob-2_25s_ease-in-out_infinite]"></div>
+          <div className="absolute bottom-[-10%] left-[20%] w-[60vw] h-[60vw] bg-[#0080ff] ambient-blob animate-[ambient-blob-3_22s_ease-in-out_infinite]"></div>
+          <div className="absolute top-[10%] right-[20%] w-[30vw] h-[30vw] bg-[#00ff80] ambient-blob animate-[ambient-blob-1_28s_ease-in-out_infinite_reverse]"></div>
+        </div>
+
+        {/* Overlay when sidebar is open */}
+        <AnimatePresence>
+          {isSidebarOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ 
+                type: "spring",
+                damping: 40,
+                stiffness: 400,
+                mass: 1
+              }}
+              onClick={() => setIsSidebarOpen(false)}
+              className="absolute inset-0 z-[60] bg-black/20 cursor-pointer"
+            />
+          )}
+        </AnimatePresence>
+
         {/* Header */}
         <header className="absolute top-0 left-0 right-0 z-50 px-4 md:px-8 pt-4 pb-12 flex items-start justify-between pointer-events-none">
           <div 
@@ -1060,7 +1123,7 @@ export default function App() {
           </div>
           
           <div className="relative z-10 flex justify-end items-start w-1/3 pointer-events-auto h-11">
-            <AnimatePresence>
+            <AnimatePresence initial={false}>
               {!isSettingsOpen && (
                 <motion.div
                   key="settings-button-wrapper"
@@ -1107,7 +1170,7 @@ export default function App() {
         >
           {activeChat.messages.length === 0 ? (
             <AnimatePresence initial={false}>
-              <Dashboard theme={theme} onActionClick={setInput} />
+              <Dashboard theme={theme} onActionClick={setInput} userName={profile?.display_name} />
             </AnimatePresence>
           ) : (
             <div className="mt-auto flex flex-col">
@@ -1157,6 +1220,33 @@ export default function App() {
 
         {/* Input Area */}
         <footer className={`absolute bottom-0 left-0 right-0 p-4 md:p-6 w-full max-w-5xl mx-auto ${isActionMenuOpen ? 'z-[100]' : 'z-20'} pointer-events-none`}>
+          {/* Scroll to Bottom Button */}
+          <div className="relative max-w-3xl mx-auto w-full mb-4 flex justify-center">
+            <AnimatePresence>
+              {showScrollToBottom && (
+                <motion.button
+                  initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.9 }}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                  onClick={() => {
+                    isUserScrolling.current = false;
+                    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  className={`p-1.5 rounded-full shadow-lg border transition-colors pointer-events-auto ${
+                    theme === 'dark' 
+                      ? 'bg-[#1a1a1a] border-white/10 text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]' 
+                      : 'bg-white border-gray-200/50 text-black shadow-[0_4px_15px_rgba(0,0,0,0.05)]'
+                  }`}
+                >
+                  <ArrowDown className="w-4 h-4" />
+                </motion.button>
+              )}
+            </AnimatePresence>
+          </div>
+
           <div className="flex items-end gap-3 max-w-3xl mx-auto w-full pointer-events-auto">
             {/* Action Menu Button */}
             <div className="relative w-12 h-12 flex-shrink-0">
@@ -1175,7 +1265,7 @@ export default function App() {
                 )}
               </AnimatePresence>
 
-              <AnimatePresence>
+              <AnimatePresence initial={false}>
                 {!isActionMenuOpen && (
                   <motion.div
                     key="action-button-wrapper"
@@ -1258,22 +1348,8 @@ export default function App() {
                           }`}
                         >
                           <div className="flex items-center gap-3">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={isThinkingMode ? getAccentClass('text') : ''}>
-                              <path d="M9 18h6" />
-                              <path d="M10 22h4" />
-                              <path d="M12 2v1" />
-                              <path d="M12 7v1" />
-                              <path d="M12 12v1" />
-                              <path d="M19 12h-1" />
-                              <path d="M14 12h-1" />
-                              <path d="M5 12h1" />
-                              <path d="M10 12h1" />
-                              <path d="M17 5l-1 1" />
-                              <path d="M13 9l-1 1" />
-                              <path d="M7 5l1 1" />
-                              <path d="M11 9l1 1" />
-                            </svg>
-                            <span className={isThinkingMode ? getAccentClass('text') : ''}>Размышление</span>
+                            <Lightbulb className={`w-4 h-4 ${isThinkingMode ? getAccentClass('text') : ''}`} />
+                            <span className={isThinkingMode ? getAccentClass('text') : ''}>Размышления</span>
                           </div>
                           {isThinkingMode && <Check className={`w-4 h-4 ${getAccentClass('text')}`} />}
                         </motion.button>
@@ -1291,7 +1367,7 @@ export default function App() {
                           }`}
                         >
                           <div className="flex items-center gap-3">
-                            <Brain className="w-4 h-4" />
+                            <FlaskConical className="w-4 h-4" />
                             Модель
                           </div>
                           <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -1416,22 +1492,8 @@ export default function App() {
                               exit={{ scale: 0.8, opacity: 0 }}
                               className={`flex items-center gap-1.5 shadow-sm rounded-full px-3 py-1.5 border ${theme === 'dark' ? 'bg-[#2a2a2a] border-white/10' : 'bg-white border-gray-100'}`}
                             >
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={getAccentClass('text')}>
-                                <path d="M9 18h6" />
-                                <path d="M10 22h4" />
-                                <path d="M12 2v1" />
-                                <path d="M12 7v1" />
-                                <path d="M12 12v1" />
-                                <path d="M19 12h-1" />
-                                <path d="M14 12h-1" />
-                                <path d="M5 12h1" />
-                                <path d="M10 12h1" />
-                                <path d="M17 5l-1 1" />
-                                <path d="M13 9l-1 1" />
-                                <path d="M7 5l1 1" />
-                                <path d="M11 9l1 1" />
-                              </svg>
-                              <span className={`text-[13px] font-medium ${getAccentClass('text')}`}>Размышление</span>
+                              <Lightbulb className={`w-3.5 h-3.5 ${getAccentClass('text')}`} />
+                              <span className={`text-[13px] font-medium ${getAccentClass('text')}`}>Размышления</span>
                               <button onClick={() => setIsThinkingMode(false)} className={`ml-1 ${getAccentClass('text')} hover:opacity-70 transition-opacity`}>
                                 <X className="w-3.5 h-3.5" />
                               </button>
@@ -1515,7 +1577,7 @@ export default function App() {
             SalarisAI может ошибаться. Перепроверяйте информацию.
           </p>
         </footer>
-      </div>
+      </motion.div>
 
       {/* Modals at the end for proper stacking context */}
       <AnimatePresence>
@@ -1939,59 +2001,23 @@ export default function App() {
 
                 <div className="flex flex-col">
                   {/* Color Selection */}
-                  <div 
-                    className={`rounded-[1.5rem] overflow-hidden ${
-                      theme === 'dark' ? 'hover:bg-white/5' : 'hover:bg-black/5'
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onTapStart={() => setIsSettingsInteracting(true)}
+                    onTap={() => setIsSettingsInteracting(false)}
+                    onTapCancel={() => setIsSettingsInteracting(false)}
+                    onClick={() => setSettingsView('color-selection')}
+                    className={`w-full rounded-full px-4 py-3 flex items-center justify-between transition-colors cursor-pointer ${
+                      theme === 'dark' ? 'hover:bg-white/5 active:bg-white/10' : 'hover:bg-black/5 active:bg-black/10'
                     }`}
                   >
-                    <motion.button
-                      whileTap={{ scale: 0.95 }}
-                      onTapStart={() => setIsSettingsInteracting(true)}
-                      onTap={() => setIsSettingsInteracting(false)}
-                      onTapCancel={() => setIsSettingsInteracting(false)}
-                      onClick={() => {
-                        setIsColorExpanded(!isColorExpanded);
-                      }}
-                      className={`w-full flex items-center justify-between px-4 py-3 rounded-full transition-[background-color,color] duration-200 ${
-                         theme === 'dark' ? 'active:bg-white/10' : 'active:bg-black/10'
-                      }`}
-                    >
-                      <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                        Выбор цвета
-                      </span>
+                    <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                      Выбрать цвет
+                    </span>
+                    <div className="h-6 flex items-center justify-center">
                       <div className={`w-5 h-5 rounded-full ${getAccentClass('bg')} shadow-sm`} />
-                    </motion.button>
-
-                    <AnimatePresence 
-                      initial={false}
-                    >
-                      {isColorExpanded && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                          className="overflow-hidden"
-                        >
-                          <div className="px-2 pb-2 flex flex-col">
-                            {ACCENT_COLORS.map((color) => (
-                              <ColorOptionButton
-                                key={color.id}
-                                color={color}
-                                theme={theme}
-                                accentColor={accentColor}
-                                setAccentColor={setAccentColor}
-                                setIsSettingsInteracting={setIsSettingsInteracting}
-                              />
-                            ))}
-                          </div>
-                          
-                          {/* Separator inside the same expanding container */}
-                          <div className={`w-full h-[1px] my-2 ${theme === 'dark' ? 'bg-white/10' : 'bg-black/5'}`} />
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
+                    </div>
+                  </motion.button>
 
                   {/* Auto Theme Toggle */}
                   <motion.button 
@@ -2103,6 +2129,57 @@ export default function App() {
                 </div>
               </div>
             </motion.div>
+          ) : settingsView === 'color-selection' ? (
+            <motion.div 
+              key="color-selection"
+              initial={{ scale: 0, opacity: 0, z: 0 }}
+              animate={{ 
+                scale: isSettingsInteracting ? 0.95 : 1, 
+                opacity: 1,
+                z: 0,
+                transition: { type: "spring", damping: 25, stiffness: 300 } 
+              }}
+              exit={{ scale: 0, opacity: 0, z: 0, transition: { duration: 0.15, ease: "easeOut" } }}
+              style={{ 
+                transformOrigin: 'calc(100% - 44px) 22px', 
+                willChange: "transform, opacity"
+              }}
+              className={`fixed top-4 right-4 md:right-8 z-[201] w-56 rounded-[2rem] overflow-hidden p-4 hyper-glass hyper-glass-shadow`}
+            >
+              <div className="flex flex-col">
+                <div className="flex items-center gap-2 mb-4 px-2">
+                  <motion.button 
+                    whileTap={{ scale: 0.95 }}
+                    onTapStart={() => setIsSettingsInteracting(true)}
+                    onTap={() => setIsSettingsInteracting(false)}
+                    onTapCancel={() => setIsSettingsInteracting(false)}
+                    onClick={() => setSettingsView('customization')}
+                    className={`p-2 rounded-full transition-colors ${
+                      theme === 'dark' ? 'hover:bg-white/10 text-gray-400' : 'hover:bg-black/5 text-gray-500'
+                    }`}
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </motion.button>
+                  <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                    Выберите цвет
+                  </span>
+                </div>
+
+                <div className="flex flex-col gap-1 px-2">
+                  {ACCENT_COLORS.map((color) => (
+                    <ColorOptionButton
+                      key={color.id}
+                      color={color}
+                      theme={theme}
+                      accentColor={accentColor}
+                      setAccentColor={setAccentColor}
+                      setIsSettingsInteracting={setIsSettingsInteracting}
+                      setSettingsView={setSettingsView}
+                    />
+                  ))}
+                </div>
+              </div>
+            </motion.div>
           ) : (
             <motion.div 
               key="about"
@@ -2143,7 +2220,7 @@ export default function App() {
                     Версия
                   </span>
                   <span className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>
-                    1.2
+                    1.3
                   </span>
                 </div>
 
@@ -2170,7 +2247,7 @@ export default function App() {
                   className="w-full flex items-center gap-3 px-4 py-3 rounded-full text-sm font-medium transition-colors text-red-500 hover:bg-red-500/10 active:bg-red-500/20"
                 >
                   <AlertCircle className="w-4 h-4" />
-                  Пожаловаться
+                  Сообщить об ошибке
                 </motion.button>
               </div>
             </motion.div>

@@ -4,6 +4,7 @@ import { motion } from 'motion/react';
 interface DashboardProps {
   theme: 'dark' | 'light';
   onActionClick: (text: string) => void;
+  userName?: string;
 }
 
 const HoverWidget = ({ children, className, glowColor, onClick }: { children: React.ReactNode, className?: string, glowColor: string, onClick?: () => void }) => {
@@ -37,14 +38,12 @@ const HoverWidget = ({ children, className, glowColor, onClick }: { children: Re
   );
 };
 
-const Dashboard = React.memo(({ theme, onActionClick }: DashboardProps) => {
+const Dashboard = React.memo(({ theme, onActionClick, userName }: DashboardProps) => {
+  const displayName = userName || 'пользователь';
+
   return (
     <div className="flex-1 flex flex-col items-start justify-end relative w-full h-full pb-4 md:pb-10">
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
-        style={{ willChange: "transform, opacity" }}
+      <div 
         className="relative z-10 flex flex-col w-full max-w-5xl px-0 items-start"
       >
         {/* Widgets Container */}
@@ -61,11 +60,13 @@ const Dashboard = React.memo(({ theme, onActionClick }: DashboardProps) => {
         </div>
 
         {/* Header Text */}
-        <div className={`font-montserrat font-medium ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
-          <div className="text-lg">Здравствуйте. Я — SalarisAI.</div>
-          <div className="text-2xl mt-1">Чем могу помочь?</div>
+        <div 
+          className={`font-montserrat font-medium ${theme === 'dark' ? 'text-white' : 'text-black'}`}
+        >
+          <div className="text-lg">Привет, {displayName}!</div>
+          <div className="text-2xl mt-1">С чего начнем?</div>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 });

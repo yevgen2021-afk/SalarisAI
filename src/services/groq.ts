@@ -8,7 +8,7 @@ const groq = new Groq({
 export async function* generateGroqResponseStream(message: string, model: string, history: any[], userName?: string) {
   // Clean up history and add the current message
   const messages = [
-    { role: 'system', content: `Ты — SalarisAI. Твоего собеседника зовут ${userName || 'пользователь'}.` },
+    { role: 'system', content: `Ты — SalarisAI. Твоего собеседника зовут ${userName}.` },
     ...history.map(({ id, isTyping, role, ...rest }: any) => ({
       ...rest,
       role: role === 'model' ? 'assistant' : role,
