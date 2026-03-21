@@ -54,8 +54,8 @@ const Dashboard = React.memo(({ theme, onActionClick, userName }: DashboardProps
             glowColor={theme === 'dark' ? "rgba(255, 255, 255, 0.15)" : "rgba(0, 0, 0, 0.1)"}
             className={`flex items-center gap-3 px-5 py-3 rounded-full shadow-lg cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all border ${
               theme === 'dark' 
-                ? 'bg-gradient-to-r from-zinc-800 to-zinc-900 border-white/10 text-white' 
-                : 'bg-gradient-to-r from-gray-100 to-gray-200 border-black/5 text-gray-900'
+                ? 'bg-gradient-to-r from-zinc-800 to-zinc-900 border-white/20 text-white' 
+                : 'bg-gradient-to-r from-gray-100 to-gray-200 border-black/10 text-gray-900'
             }`}
           >
             <span className="relative z-10 text-xl">❓</span>

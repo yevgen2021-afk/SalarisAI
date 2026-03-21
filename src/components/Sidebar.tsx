@@ -19,6 +19,7 @@ interface SidebarProps {
   editingChatId: string | null;
   onOpenChatMenu: (chat: Chat, rect: DOMRect) => void;
   activeChatMenu: { chat: Chat, rect: DOMRect } | null;
+  getAccentClass: (type: 'bg' | 'text' | 'border' | 'shadow' | 'hover') => string;
 }
 
 const Sidebar = React.memo(({
@@ -37,6 +38,7 @@ const Sidebar = React.memo(({
   editingChatId,
   onOpenChatMenu,
   activeChatMenu,
+  getAccentClass,
 }: SidebarProps) => {
   return (
     <motion.aside 
@@ -59,7 +61,12 @@ const Sidebar = React.memo(({
           : 'bg-white text-gray-900'
       }`}
     >
-      <div className="p-4 pb-12 flex items-center">
+      <div className="pt-6 px-6 pb-2">
+        <h1 className={`text-3xl font-display font-bold tracking-tighter ${theme === 'dark' ? 'text-white' : 'text-gray-900'} flex items-center gap-0.5`}>
+          salaris<span className={getAccentClass('text')}>ai</span>
+        </h1>
+      </div>
+      <div className="px-4 pt-2 pb-6 flex items-center">
         <div 
           className={`flex-1 flex items-center gap-2 px-4 h-11 rounded-full shadow-md border transition-colors ${theme === 'dark' ? 'bg-[#1a1a1a] border-white/10 text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]' : 'bg-white border-gray-200/50 text-black shadow-[0_4px_15px_rgba(0,0,0,0.05)]'}`}
         >

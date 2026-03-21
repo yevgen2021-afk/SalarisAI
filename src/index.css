@@ -4,7 +4,12 @@
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-montserrat: "Montserrat", sans-serif;
-  --font-google: "Outfit", sans-serif;
+  --font-display: "Outfit", sans-serif;
+}
+
+:root {
+  --glass-opacity: 0.08;
+  --glass-opacity-hover: 0.12;
 }
 
 @keyframes ambient-blob-1 {

@@ -4,6 +4,7 @@ import { ArrowUp, ArrowDown, Menu, Settings, Trash2, Info, X, SquarePen, Plus, P
 import { motion, AnimatePresence, useAnimation } from 'motion/react';
 import { Chat, Message } from './types';
 import { generateGroqResponseStream } from './services/groq';
+import { generateGeminiImage } from './services/geminiImageService';
 import ChatMessage from './components/ChatMessage';
 import Dashboard from './components/Dashboard';
 import Sidebar from './components/Sidebar';
@@ -272,13 +273,17 @@ export default function App() {
   const [actionMenuView, setActionMenuView] = useState<'main' | 'model'>('main');
   const [selectedModel, setSelectedModel] = useState<'llama-3.3-70b-versatile' | 'meta-llama/llama-4-scout-17b-16e-instruct'>('meta-llama/llama-4-scout-17b-16e-instruct');
   const [isThinkingMode, setIsThinkingMode] = useState<boolean>(false);
+  const [isImageMode, setIsImageMode] = useState<boolean>(false);
   
-  const stateRef = useRef({ chats, activeChatId, isLoading, selectedModel, isThinkingMode, profile });
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  
+  const stateRef = useRef({ chats, activeChatId, isLoading, selectedModel, isThinkingMode, isImageMode, profile });
   useEffect(() => {
-    stateRef.current = { chats, activeChatId, isLoading, selectedModel, isThinkingMode, profile };
-  }, [chats, activeChatId, isLoading, selectedModel, isThinkingMode, profile]);
+    stateRef.current = { chats, activeChatId, isLoading, selectedModel, isThinkingMode, isImageMode, profile };
+  }, [chats, activeChatId, isLoading, selectedModel, isThinkingMode, isImageMode, profile]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isAtBottom, setIsAtBottom] = useState(true);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const stopGenerationRef = useRef<boolean>(false);
@@ -571,10 +576,14 @@ export default function App() {
     
     setIsScrolled(scrollTop > 20);
 
+    // Check if we are at the bottom (with a small threshold)
+    const atBottom = scrollHeight - scrollTop - clientHeight < 50;
+    setIsAtBottom(atBottom);
+
     // If user scrolls up more than 150px from the bottom, they are manually scrolling
-    const isAtBottom = scrollHeight - scrollTop - clientHeight < 150;
-    isUserScrolling.current = !isAtBottom;
-    setShowScrollToBottom(!isAtBottom);
+    const isNearBottom = scrollHeight - scrollTop - clientHeight < 150;
+    isUserScrolling.current = !isNearBottom;
+    setShowScrollToBottom(!isNearBottom);
   }, []);
 
   const scrollToBottom = useCallback(() => {
@@ -600,6 +609,8 @@ export default function App() {
     const newChat = createNewChat();
     setChats(prev => [newChat, ...prev]);
     setActiveChatId(newChat.id);
+    setIsScrolled(false);
+    setIsAtBottom(true);
     setIsLoading(false);
     setIsSidebarOpen(false);
     setSelectedFiles([]);
@@ -660,7 +671,15 @@ export default function App() {
   }, [isGenerating, handleStopGeneration]);
 
   const handleSend = useCallback(async () => {
+    const { chats, activeChatId, isLoading, selectedModel, isThinkingMode, isImageMode, profile } = stateRef.current;
     if ((!input.trim() && selectedFiles.length === 0) || isLoading) return;
+
+    if (isImageMode) {
+      handleGenerateImage(input.trim());
+      setInput('');
+      setIsImageMode(false);
+      return;
+    }
 
     // Reset manual scroll when sending a message
     isUserScrolling.current = false;
@@ -756,7 +775,7 @@ export default function App() {
       if (error instanceof Error) {
         errorText = error.message;
         if (errorText.includes('429') || errorText.includes('quota') || errorText.includes('RESOURCE_EXHAUSTED')) {
-          errorText = `Превышен лимит запросов к API Google (Quota Exceeded). Пожалуйста, подождите (лимиты сбрасываются) или проверьте ваш аккаунт Google AI Studio.`;
+          errorText = `Превышен лимит запросов к API (Quota Exceeded). Пожалуйста, подождите (лимиты сбрасываются) или проверьте настройки вашего аккаунта.`;
         } else if (errorText.includes('{')) {
           try {
             // Attempt to extract a cleaner message if it's JSON
@@ -799,6 +818,83 @@ export default function App() {
       setIsLoading(false);
     }
   }, [input, isLoading, activeChatId, selectedModel, isThinkingMode, chats, profile]);
+
+  const handleGenerateImage = useCallback(async (prompt: string) => {
+    const { activeChatId } = stateRef.current;
+    if (!prompt.trim() || !activeChatId) return;
+
+    setIsGeneratingImage(true);
+
+    // Add user message
+    const userMessageId = Date.now().toString();
+    const userMessage: Message = {
+      id: userMessageId,
+      role: 'user',
+      content: prompt.startsWith('Нарисуй') ? prompt : `Нарисуй: ${prompt}`
+    };
+
+    setChats(prev => prev.map(chat => {
+      if (chat.id === activeChatId) {
+        return {
+          ...chat,
+          messages: [...chat.messages, userMessage]
+        };
+      }
+      return chat;
+    }));
+
+    const modelMessageId = (Date.now() + 1).toString();
+    // Add placeholder model message
+    setChats(prev => prev.map(chat => {
+      if (chat.id === activeChatId) {
+        return {
+          ...chat,
+          messages: [...chat.messages, { id: modelMessageId, role: 'model', content: 'Генерирую изображение...', isTyping: true }]
+        };
+      }
+      return chat;
+    }));
+
+    try {
+      const result = await generateGeminiImage(prompt);
+      
+      setChats(prev => prev.map(chat => {
+        if (chat.id === activeChatId) {
+          return {
+            ...chat,
+            messages: chat.messages.map(m => 
+              m.id === modelMessageId 
+                ? { ...m, content: `![${prompt}](${result.imageUrl})\n\n${result.revisedPrompt || ''}`, isTyping: false } 
+                : m
+            )
+          };
+        }
+        return chat;
+      }));
+    } catch (error) {
+      console.error("Image generation failed:", error);
+      let errorText = 'Не удалось сгенерировать изображение. Попробуйте позже.';
+      if (error instanceof Error) {
+        errorText = error.message;
+      }
+      
+      setChats(prev => prev.map(chat => {
+        if (chat.id === activeChatId) {
+          return {
+            ...chat,
+            messages: chat.messages.map(m => 
+              m.id === modelMessageId 
+                ? { ...m, content: `**Ошибка:** ${errorText}`, isTyping: false } 
+                : m
+            )
+          };
+        }
+        return chat;
+      }));
+    } finally {
+      setIsGeneratingImage(false);
+    }
+  }, []);
 
   const handleRegenerate = useCallback(async (messageId: string) => {
     const { chats, activeChatId, isLoading, selectedModel, profile } = stateRef.current;
@@ -889,7 +985,7 @@ export default function App() {
       if (error instanceof Error) {
         errorText = error.message;
         if (errorText.includes('429') || errorText.includes('quota') || errorText.includes('RESOURCE_EXHAUSTED')) {
-          errorText = `Превышен лимит запросов к API Google (Quota Exceeded). Пожалуйста, подождите (лимиты сбрасываются) или проверьте ваш аккаунт Google AI Studio.`;
+          errorText = `Превышен лимит запросов к API (Quota Exceeded). Пожалуйста, подождите (лимиты сбрасываются) или проверьте настройки вашего аккаунта.`;
         } else if (errorText.includes('{')) {
           try {
             const match = errorText.match(/"message":\s*"([^"]+)"/);
@@ -1041,6 +1137,7 @@ export default function App() {
         editingChatId={editingChatId}
         onOpenChatMenu={(chat, rect) => setActiveChatMenu({ chat, rect })}
         activeChatMenu={activeChatMenu}
+        getAccentClass={getAccentClass}
       />
 
       {/* Main Content */}
@@ -1094,7 +1191,7 @@ export default function App() {
         <header className="absolute top-0 left-0 right-0 z-50 px-4 md:px-8 pt-4 pb-12 flex items-start justify-between pointer-events-none">
           <div 
             className={`absolute inset-0 pointer-events-none transition-opacity duration-500 ease-in-out ${
-              isScrolled ? 'opacity-100' : 'opacity-0'
+              isScrolled && activeChat.messages.length > 0 ? 'opacity-100' : 'opacity-0'
             } bg-gradient-to-b ${theme === 'dark' ? 'from-[#050505] via-[#050505]/80 to-transparent' : 'from-[#f8f9fa] via-[#f8f9fa]/80 to-transparent'}`}
           />
           
@@ -1104,9 +1201,13 @@ export default function App() {
               whileTap={{ scale: 1.1 }}
               style={{ willChange: "transform" }}
               onClick={() => setIsSidebarOpen(true)}
-              className={`w-11 h-11 flex items-center justify-center rounded-full shadow-md border transition-colors ${theme === 'dark' ? 'bg-[#1a1a1a] border-white/10 text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]' : 'bg-white border-gray-200/50 text-black shadow-[0_4px_15px_rgba(0,0,0,0.05)]'}`}
+              className={`w-11 h-11 flex items-center justify-center rounded-full shadow-md border transition-colors backdrop-blur-xl ${
+                theme === 'dark' 
+                  ? 'bg-white/[0.08] border-white/10 text-white shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' 
+                  : 'bg-white/30 border-white/40 text-black shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'
+              }`}
             >
-              <Menu className="w-5 h-5" />
+              <Plus className="w-5 h-5" />
             </motion.button>
           </div>
 
@@ -1115,11 +1216,12 @@ export default function App() {
               whileHover={{ scale: 1.15 }}
               whileTap={{ scale: 1.1 }}
               style={{ willChange: "transform" }}
-              className={`px-5 h-11 flex items-center justify-center rounded-full shadow-md border transition-colors ${theme === 'dark' ? 'bg-[#1a1a1a] border-white/10 text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]' : 'bg-white border-gray-200/50 text-black shadow-[0_4px_15px_rgba(0,0,0,0.05)]'}`}
+              className={`w-16 h-11 flex items-center justify-center rounded-full shadow-md border transition-colors backdrop-blur-xl ${
+                theme === 'dark' 
+                  ? 'bg-white/[0.08] border-white/10 text-white shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' 
+                  : 'bg-white/30 border-white/40 text-black shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'
+              }`}
             >
-              <h1 className={`text-lg font-google font-bold tracking-tighter ${theme === 'dark' ? 'text-white' : 'text-gray-900'} flex items-center gap-0.5`}>
-                salaris<span className={getAccentClass('text')}>ai</span>
-              </h1>
             </motion.div>
           </div>
           
@@ -1140,7 +1242,11 @@ export default function App() {
                     scale: { type: "spring", stiffness: 500, damping: 30 }
                   }}
                   style={{ transformOrigin: 'right center', willChange: "transform" }}
-                  className={`absolute right-0 flex items-center h-11 rounded-full shadow-md border transition-colors overflow-hidden ${theme === 'dark' ? 'bg-[#1a1a1a] border-white/10 text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]' : 'bg-white border-gray-200/50 text-black shadow-[0_4px_15px_rgba(0,0,0,0.05)]'}`}
+                  className={`absolute right-0 flex items-center h-11 rounded-full shadow-md border transition-colors overflow-hidden backdrop-blur-xl ${
+                    theme === 'dark' 
+                      ? 'bg-white/[0.08] border-white/10 text-white shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' 
+                      : 'bg-white/30 border-white/40 text-black shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'
+                  }`}
                 >
                   <button 
                     onClick={handleNewChat}
@@ -1205,7 +1311,7 @@ export default function App() {
                     className="flex justify-start mb-10"
                   >
                     <div className="relative w-fit">
-                      <div className={`relative z-10 px-6 py-4 rounded-[2rem] backdrop-blur-[20px] border flex items-center gap-1.5 ${theme === 'dark' ? 'bg-white/[0.08] border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' : 'bg-white/75 border-black/[0.08] shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'}`}>
+                      <div className={`relative z-10 px-6 py-4 rounded-[2rem] backdrop-blur-[20px] border flex items-center gap-1.5 ${theme === 'dark' ? 'bg-white/[0.08] border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' : 'bg-white/30 border-white/40 shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'}`}>
                         <div className={`w-1.5 h-1.5 rounded-full ${getAccentClass('bg')} typing-dot`} style={{ animationDelay: '0s' }} />
                         <div className={`w-1.5 h-1.5 rounded-full ${getAccentClass('bg')} typing-dot`} style={{ animationDelay: '0.2s' }} />
                         <div className={`w-1.5 h-1.5 rounded-full ${getAccentClass('bg')} typing-dot`} style={{ animationDelay: '0.4s' }} />
@@ -1218,6 +1324,13 @@ export default function App() {
             </div>
           )}
         </main>
+        
+        {/* Bottom Gradient Overlay */}
+        <div 
+          className={`absolute bottom-0 left-0 right-0 h-40 z-10 pointer-events-none transition-opacity duration-500 ease-in-out ${
+            !isAtBottom && activeChat.messages.length > 0 ? 'opacity-100' : 'opacity-0'
+          } bg-gradient-to-t ${theme === 'dark' ? 'from-[#050505] via-[#050505]/80 to-transparent' : 'from-[#f8f9fa] via-[#f8f9fa]/80 to-transparent'}`}
+        />
 
         {/* Input Area */}
         <footer className={`absolute bottom-0 left-0 right-0 p-4 md:p-6 w-full max-w-5xl mx-auto ${isActionMenuOpen ? 'z-[100]' : 'z-20'} pointer-events-none`}>
@@ -1286,7 +1399,11 @@ export default function App() {
                         }}
                         style={{ willChange: "transform" }}
                         onClick={() => setIsActionMenuOpen(true)}
-                        className={`w-full h-full flex items-center justify-center rounded-full shadow-md border transition-colors cursor-pointer ${theme === 'dark' ? 'bg-[#1a1a1a] border-white/10 text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]' : 'bg-white border-gray-200/50 text-black shadow-[0_4px_15px_rgba(0,0,0,0.05)]'}`}
+                        className={`w-full h-full flex items-center justify-center rounded-full shadow-md border transition-colors cursor-pointer backdrop-blur-xl ${
+                          theme === 'dark' 
+                            ? 'bg-white/[0.08] border-white/10 text-white shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' 
+                            : 'bg-white/30 border-white/40 text-black shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'
+                        }`}
                       >
                         <Plus className="w-6 h-6" />
                       </motion.button>
@@ -1309,7 +1426,7 @@ export default function App() {
                       }}
                       exit={{ scale: 0, opacity: 0, z: 0, transition: { duration: 0.15, ease: "easeOut" } }}
                       style={{ transformOrigin: '24px calc(100% - 24px)', willChange: "transform, opacity" }}
-                      className={`absolute bottom-0 left-0 z-[200] w-64 rounded-[2rem] overflow-hidden p-2 backdrop-blur-xl backdrop-saturate-150 border ${theme === 'dark' ? 'bg-white/[0.08] border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' : 'bg-white/75 border-black/[0.08] shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'}`}
+                      className={`absolute bottom-0 left-0 z-[200] w-64 rounded-[2rem] overflow-hidden p-2 backdrop-blur-xl backdrop-saturate-150 border ${theme === 'dark' ? 'bg-white/[0.08] border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' : 'bg-white/30 border-white/40 shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'}`}
                     >
                       <div className="flex flex-col">
                         <motion.button
@@ -1331,6 +1448,32 @@ export default function App() {
                             <Plus className="w-4 h-4" />
                             <span>Добавить файл</span>
                           </div>
+                        </motion.button>
+
+                        <motion.button
+                          whileTap={{ scale: 0.95 }}
+                          onTapStart={() => setIsActionMenuInteracting(true)}
+                          onTap={() => setIsActionMenuInteracting(false)}
+                          onTapCancel={() => setIsActionMenuInteracting(false)}
+                          onClick={() => {
+                            const newMode = !isImageMode;
+                            setIsImageMode(newMode);
+                            if (newMode && !input.startsWith('Нарисуй')) {
+                              setInput('Нарисуй: ' + input);
+                            }
+                            setIsActionMenuOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between px-4 py-3 rounded-full text-sm font-medium transition-colors ${
+                            theme === 'dark' 
+                              ? 'hover:bg-white/10 active:bg-white/20 text-white' 
+                              : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <Paintbrush className={`w-4 h-4 ${isImageMode ? getAccentClass('text') : ''}`} />
+                            <span className={isImageMode ? getAccentClass('text') : ''}>Изображение</span>
+                          </div>
+                          {isImageMode && <Check className={`w-4 h-4 ${getAccentClass('text')}`} />}
                         </motion.button>
 
                         <motion.button
@@ -1393,7 +1536,7 @@ export default function App() {
                       className={`absolute bottom-0 left-0 z-[200] w-64 rounded-[2rem] overflow-hidden shadow-[0_16px_40px_rgba(0,0,0,0.2)] border p-2 backdrop-blur-xl ${
                         theme === 'dark' 
                           ? 'bg-white/10 border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]' 
-                          : 'bg-white/60 border-white/40 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]'
+                          : 'bg-white/30 border-white/40 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]'
                       }`}
                     >
                       <div className="flex flex-col">
@@ -1469,11 +1612,11 @@ export default function App() {
               )}
 
               {/* Input Bar Container */}
-              <div className={`relative z-10 flex flex-col rounded-[2rem] p-1.5 backdrop-blur-xl backdrop-saturate-150 border ${theme === 'dark' ? 'bg-white/[0.08] border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' : 'bg-white/75 border-black/[0.08] shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'}`}>
+              <div className={`relative z-10 flex flex-col rounded-[2rem] p-1.5 backdrop-blur-xl backdrop-saturate-150 border ${theme === 'dark' ? 'bg-white/[0.08] border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' : 'bg-white/30 border-white/40 shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'}`}>
                 
                 {/* Top section: Pills and Image Preview */}
                 <AnimatePresence initial={false}>
-                  {isThinkingMode && (
+                  {(isThinkingMode || isImageMode) && (
                     <motion.div 
                       key="pills-container"
                       initial={{ opacity: 0, scaleY: 0.95 }}
@@ -1496,6 +1639,21 @@ export default function App() {
                               <Lightbulb className={`w-3.5 h-3.5 ${getAccentClass('text')}`} />
                               <span className={`text-[13px] font-medium ${getAccentClass('text')}`}>Размышления</span>
                               <button onClick={() => setIsThinkingMode(false)} className={`ml-1 ${getAccentClass('text')} hover:opacity-70 transition-opacity`}>
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </motion.div>
+                          )}
+                          {isImageMode && (
+                            <motion.div 
+                              key="image-mode"
+                              initial={{ scale: 0.8, opacity: 0 }}
+                              animate={{ scale: 1, opacity: 1 }}
+                              exit={{ scale: 0.8, opacity: 0 }}
+                              className={`flex items-center gap-1.5 shadow-sm rounded-full px-3 py-1.5 border ${theme === 'dark' ? 'bg-[#2a2a2a] border-white/10' : 'bg-white border-gray-100'}`}
+                            >
+                              <Paintbrush className={`w-3.5 h-3.5 ${getAccentClass('text')}`} />
+                              <span className={`text-[13px] font-medium ${getAccentClass('text')}`}>Изображение</span>
+                              <button onClick={() => setIsImageMode(false)} className={`ml-1 ${getAccentClass('text')} hover:opacity-70 transition-opacity`}>
                                 <X className="w-3.5 h-3.5" />
                               </button>
                             </motion.div>
@@ -1601,7 +1759,7 @@ export default function App() {
               className={`relative w-full max-w-[300px] rounded-[2rem] overflow-hidden shadow-[0_16px_40px_rgba(0,0,0,0.2)] border ${
                 theme === 'dark' 
                   ? 'bg-white/10 border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]' 
-                  : 'bg-white/60 border-white/40 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]'
+                  : 'bg-white/30 border-white/40 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]'
               } backdrop-blur-xl`}
             >
               <div className="p-6">
@@ -1671,7 +1829,7 @@ export default function App() {
               className={`relative w-full max-w-[300px] rounded-[2rem] overflow-hidden shadow-[0_16px_40px_rgba(0,0,0,0.2)] border ${
                 theme === 'dark' 
                   ? 'bg-white/10 border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]' 
-                  : 'bg-white/60 border-white/40 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]'
+                  : 'bg-white/30 border-white/40 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]'
               } backdrop-blur-xl`}
             >
               <div className="p-6">
@@ -1738,7 +1896,7 @@ export default function App() {
                 transformOrigin: 'calc(100% - 44px) 22px', 
                 willChange: "transform, opacity"
               }}
-              className={`fixed top-4 right-4 md:right-8 z-[201] w-72 rounded-[2rem] overflow-hidden p-4 backdrop-blur-xl backdrop-saturate-150 border ${theme === 'dark' ? 'bg-white/[0.08] border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' : 'bg-white/75 border-black/[0.08] shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'}`}
+              className={`fixed top-4 right-4 md:right-8 z-[201] w-72 rounded-[2rem] overflow-hidden p-4 backdrop-blur-xl backdrop-saturate-150 border ${theme === 'dark' ? 'bg-white/[0.08] border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' : 'bg-white/30 border-white/40 shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'}`}
             >
               <div className="flex flex-col">
                 {user && (
@@ -1842,7 +2000,7 @@ export default function App() {
                 transformOrigin: 'calc(100% - 44px) 22px', 
                 willChange: "transform, opacity"
               }}
-              className={`fixed top-4 right-4 md:right-8 z-[201] w-72 rounded-[2rem] overflow-hidden p-4 backdrop-blur-xl backdrop-saturate-150 border ${theme === 'dark' ? 'bg-white/[0.08] border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' : 'bg-white/75 border-black/[0.08] shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'}`}
+              className={`fixed top-4 right-4 md:right-8 z-[201] w-72 rounded-[2rem] overflow-hidden p-4 backdrop-blur-xl backdrop-saturate-150 border ${theme === 'dark' ? 'bg-white/[0.08] border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' : 'bg-white/30 border-white/40 shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'}`}
             >
               <div className="flex flex-col">
                 <div className="flex items-center gap-2 mb-4 px-2">
@@ -1979,7 +2137,7 @@ export default function App() {
                 transformOrigin: 'calc(100% - 44px) 22px', 
                 willChange: "transform, opacity"
               }}
-              className={`fixed top-4 right-4 md:right-8 z-[201] w-72 rounded-[2rem] overflow-hidden p-4 backdrop-blur-xl backdrop-saturate-150 border ${theme === 'dark' ? 'bg-white/[0.08] border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' : 'bg-white/75 border-black/[0.08] shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'}`}
+              className={`fixed top-4 right-4 md:right-8 z-[201] w-72 rounded-[2rem] overflow-hidden p-4 backdrop-blur-xl backdrop-saturate-150 border ${theme === 'dark' ? 'bg-white/[0.08] border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' : 'bg-white/30 border-white/40 shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'}`}
             >
               <div className="flex flex-col">
                 <div className="flex items-center gap-2 mb-4 px-2">
@@ -2145,7 +2303,7 @@ export default function App() {
                 transformOrigin: 'calc(100% - 44px) 22px', 
                 willChange: "transform, opacity"
               }}
-              className={`fixed top-4 right-4 md:right-8 z-[201] w-56 rounded-[2rem] overflow-hidden p-4 backdrop-blur-xl backdrop-saturate-150 border ${theme === 'dark' ? 'bg-white/[0.08] border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' : 'bg-white/75 border-black/[0.08] shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'}`}
+              className={`fixed top-4 right-4 md:right-8 z-[201] w-56 rounded-[2rem] overflow-hidden p-4 backdrop-blur-xl backdrop-saturate-150 border ${theme === 'dark' ? 'bg-white/[0.08] border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' : 'bg-white/30 border-white/40 shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'}`}
             >
               <div className="flex flex-col">
                 <div className="flex items-center gap-2 mb-4 px-2">
@@ -2196,7 +2354,7 @@ export default function App() {
                 transformOrigin: 'calc(100% - 44px) 22px', 
                 willChange: "transform, opacity"
               }}
-              className={`fixed top-4 right-4 md:right-8 z-[201] w-72 rounded-[2rem] overflow-hidden p-4 backdrop-blur-xl backdrop-saturate-150 border ${theme === 'dark' ? 'bg-white/[0.08] border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' : 'bg-white/75 border-black/[0.08] shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'}`}
+              className={`fixed top-4 right-4 md:right-8 z-[201] w-72 rounded-[2rem] overflow-hidden p-4 backdrop-blur-xl backdrop-saturate-150 border ${theme === 'dark' ? 'bg-white/[0.08] border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' : 'bg-white/30 border-white/40 shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'}`}
             >
               <div className="flex flex-col">
                 <div className="flex items-center gap-2 mb-4 px-2">
@@ -2301,7 +2459,7 @@ export default function App() {
               zIndex: 1001
             }}
             className={`w-48 rounded-[2rem] overflow-hidden p-2 backdrop-blur-xl backdrop-saturate-150 border ${
-              theme === 'dark' ? 'bg-white/[0.12] border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' : 'bg-white/90 border-black/[0.08] shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'
+              theme === 'dark' ? 'bg-white/[0.12] border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' : 'bg-white/30 border-white/40 shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'
             }`}
           >
             <div className="flex flex-col">

@@ -74,7 +74,7 @@ export default function ReportModal({ isOpen, onClose, onSubmit, theme, isSubmit
           >
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className={`text-xl font-google font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                <h3 className={`text-xl font-display font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                   {getTitle()}
                 </h3>
                 <button

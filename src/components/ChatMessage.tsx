@@ -86,7 +86,7 @@ const ChatMessage = memo(({ id, role, content, theme, isTyping, accentColor, isG
       if (!props.src) return null;
       return (
         <img 
-          className="rounded-xl max-w-full h-auto my-2 border border-white/10 shadow-sm block" 
+          className="rounded-xl max-w-full h-auto my-2 border border-white/20 shadow-sm block" 
           {...props} 
           onError={(e) => {
             e.currentTarget.style.display = 'none';
@@ -107,8 +107,8 @@ const ChatMessage = memo(({ id, role, content, theme, isTyping, accentColor, isG
       
       if (!isInline && match) {
         return (
-          <div className="my-4 rounded-xl overflow-hidden border border-white/10 shadow-sm">
-            <div className="flex items-center justify-between px-4 py-2 bg-black/20 text-xs text-gray-400 font-mono border-b border-white/10">
+          <div className="my-4 rounded-xl overflow-hidden border border-white/20 shadow-sm">
+            <div className="flex items-center justify-between px-4 py-2 bg-black/20 text-xs text-gray-400 font-mono border-b border-white/20">
               <span>{match[1]}</span>
             </div>
             <SyntaxHighlighter
@@ -130,13 +130,13 @@ const ChatMessage = memo(({ id, role, content, theme, isTyping, accentColor, isG
       )
     },
     table: ({node, ...props}: any) => (
-      <div className="overflow-x-auto my-4 rounded-xl border border-white/10">
+      <div className="overflow-x-auto my-4 rounded-xl border border-white/20">
         <table className="w-full text-left border-collapse text-sm" {...props} />
       </div>
     ),
     thead: ({node, ...props}: any) => <thead className={theme === 'dark' ? 'bg-white/5' : 'bg-black/5'} {...props} />,
-    th: ({node, ...props}: any) => <th className={`p-3 font-semibold border-b ${theme === 'dark' ? 'border-white/10 text-gray-200' : 'border-black/10 text-gray-800'}`} {...props} />,
-    td: ({node, ...props}: any) => <td className={`p-3 border-b ${theme === 'dark' ? 'border-white/5 text-gray-300' : 'border-black/5 text-gray-700'}`} {...props} />,
+    th: ({node, ...props}: any) => <th className={`p-3 font-semibold border-b ${theme === 'dark' ? 'border-white/20 text-gray-200' : 'border-black/10 text-gray-800'}`} {...props} />,
+    td: ({node, ...props}: any) => <td className={`p-3 border-b ${theme === 'dark' ? 'border-white/20 text-gray-300' : 'border-black/10 text-gray-700'}`} {...props} />,
     tr: ({node, ...props}: any) => <tr className={theme === 'dark' ? 'hover:bg-white/5 transition-colors' : 'hover:bg-black/5 transition-colors'} {...props} />
   }), [isUser, theme]);
 
@@ -167,7 +167,7 @@ const ChatMessage = memo(({ id, role, content, theme, isTyping, accentColor, isG
                 className={`relative z-10 px-4 py-2.5 rounded-[2rem] font-sans ${
                   isUser 
                     ? `${getAccentClasses()} shadow-sm` 
-                    : (theme === 'dark' ? 'bg-[#1a1a1a] border border-white/10 text-white' : 'bg-white border border-gray-200 text-gray-900 shadow-sm')
+                    : (theme === 'dark' ? 'bg-[#1a1a1a] border border-white/20 text-white' : 'bg-white border border-black/10 text-gray-900 shadow-sm')
                 } transition-all duration-300`}
               >
                 <ReactMarkdown 

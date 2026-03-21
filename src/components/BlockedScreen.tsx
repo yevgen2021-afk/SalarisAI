@@ -14,7 +14,7 @@ export default function BlockedScreen({ theme, onLogout }: BlockedScreenProps) {
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         className={`w-full max-w-md p-8 rounded-[2.5rem] border text-center ${
-          theme === 'dark' ? 'bg-[#1a1a1a] border-white/10' : 'bg-white border-gray-200'
+          theme === 'dark' ? 'bg-[#1a1a1a] border-white/20' : 'bg-white border-black/10'
         } shadow-2xl`}
       >
         <div className="w-20 h-20 bg-red-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6">

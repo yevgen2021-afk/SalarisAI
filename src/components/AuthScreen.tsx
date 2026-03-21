@@ -138,7 +138,7 @@ export default function AuthScreen({ theme, accentColor, onLoginSuccess }: AuthS
         className="w-full max-w-[400px]"
       >
         <div className="flex flex-col items-start mb-12">
-          <h1 className={`text-4xl font-google font-bold tracking-tighter ${theme === 'dark' ? 'text-white' : 'text-gray-900'} flex items-center gap-0.5`}>
+          <h1 className={`text-4xl font-display font-bold tracking-tighter ${theme === 'dark' ? 'text-white' : 'text-gray-900'} flex items-center gap-0.5`}>
             salaris<span className={getAccentClass('text')}>ai</span>
           </h1>
           <p className={`mt-3 text-left ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
