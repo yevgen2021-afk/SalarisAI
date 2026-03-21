@@ -4,13 +4,13 @@ import { ArrowUp, ArrowDown, Menu, Settings, Trash2, Info, X, SquarePen, Plus, P
 import { motion, AnimatePresence, useAnimation } from 'motion/react';
 import { Chat, Message } from './types';
 import { generateGroqResponseStream } from './services/groq';
-import { generateGeminiImage } from './services/geminiImageService';
 import ChatMessage from './components/ChatMessage';
 import Dashboard from './components/Dashboard';
 import Sidebar from './components/Sidebar';
 import AuthScreen from './components/AuthScreen';
 import BlockedScreen from './components/BlockedScreen';
 import ReportModal from './components/ReportModal';
+import MaintenanceMode from './components/MaintenanceMode';
 import { supabase } from './lib/supabase';
 
 const createNewChat = (): Chat => ({
@@ -63,6 +63,7 @@ const ColorOptionButton = ({ color, theme, accentColor, setAccentColor, setIsSet
 };
 
 export default function App() {
+  const [isMaintenance] = useState(true); // Set to true to block the app
   const [isLoaded, setIsLoaded] = useState(false);
   const [chats, setChats] = useState<Chat[]>([createNewChat()]);
   const [activeChatId, setActiveChatId] = useState<string>('');
@@ -273,14 +274,11 @@ export default function App() {
   const [actionMenuView, setActionMenuView] = useState<'main' | 'model'>('main');
   const [selectedModel, setSelectedModel] = useState<'llama-3.3-70b-versatile' | 'meta-llama/llama-4-scout-17b-16e-instruct'>('meta-llama/llama-4-scout-17b-16e-instruct');
   const [isThinkingMode, setIsThinkingMode] = useState<boolean>(false);
-  const [isImageMode, setIsImageMode] = useState<boolean>(false);
   
-  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
-  
-  const stateRef = useRef({ chats, activeChatId, isLoading, selectedModel, isThinkingMode, isImageMode, profile });
+  const stateRef = useRef({ chats, activeChatId, isLoading, selectedModel, isThinkingMode, profile });
   useEffect(() => {
-    stateRef.current = { chats, activeChatId, isLoading, selectedModel, isThinkingMode, isImageMode, profile };
-  }, [chats, activeChatId, isLoading, selectedModel, isThinkingMode, isImageMode, profile]);
+    stateRef.current = { chats, activeChatId, isLoading, selectedModel, isThinkingMode, profile };
+  }, [chats, activeChatId, isLoading, selectedModel, isThinkingMode, profile]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -671,15 +669,7 @@ export default function App() {
   }, [isGenerating, handleStopGeneration]);
 
   const handleSend = useCallback(async () => {
-    const { chats, activeChatId, isLoading, selectedModel, isThinkingMode, isImageMode, profile } = stateRef.current;
     if ((!input.trim() && selectedFiles.length === 0) || isLoading) return;
-
-    if (isImageMode) {
-      handleGenerateImage(input.trim());
-      setInput('');
-      setIsImageMode(false);
-      return;
-    }
 
     // Reset manual scroll when sending a message
     isUserScrolling.current = false;
@@ -818,83 +808,6 @@ export default function App() {
       setIsLoading(false);
     }
   }, [input, isLoading, activeChatId, selectedModel, isThinkingMode, chats, profile]);
-
-  const handleGenerateImage = useCallback(async (prompt: string) => {
-    const { activeChatId } = stateRef.current;
-    if (!prompt.trim() || !activeChatId) return;
-
-    setIsGeneratingImage(true);
-
-    // Add user message
-    const userMessageId = Date.now().toString();
-    const userMessage: Message = {
-      id: userMessageId,
-      role: 'user',
-      content: prompt.startsWith('Нарисуй') ? prompt : `Нарисуй: ${prompt}`
-    };
-
-    setChats(prev => prev.map(chat => {
-      if (chat.id === activeChatId) {
-        return {
-          ...chat,
-          messages: [...chat.messages, userMessage]
-        };
-      }
-      return chat;
-    }));
-
-    const modelMessageId = (Date.now() + 1).toString();
-    // Add placeholder model message
-    setChats(prev => prev.map(chat => {
-      if (chat.id === activeChatId) {
-        return {
-          ...chat,
-          messages: [...chat.messages, { id: modelMessageId, role: 'model', content: 'Генерирую изображение...', isTyping: true }]
-        };
-      }
-      return chat;
-    }));
-
-    try {
-      const result = await generateGeminiImage(prompt);
-      
-      setChats(prev => prev.map(chat => {
-        if (chat.id === activeChatId) {
-          return {
-            ...chat,
-            messages: chat.messages.map(m => 
-              m.id === modelMessageId 
-                ? { ...m, content: `![${prompt}](${result.imageUrl})\n\n${result.revisedPrompt || ''}`, isTyping: false } 
-                : m
-            )
-          };
-        }
-        return chat;
-      }));
-    } catch (error) {
-      console.error("Image generation failed:", error);
-      let errorText = 'Не удалось сгенерировать изображение. Попробуйте позже.';
-      if (error instanceof Error) {
-        errorText = error.message;
-      }
-      
-      setChats(prev => prev.map(chat => {
-        if (chat.id === activeChatId) {
-          return {
-            ...chat,
-            messages: chat.messages.map(m => 
-              m.id === modelMessageId 
-                ? { ...m, content: `**Ошибка:** ${errorText}`, isTyping: false } 
-                : m
-            )
-          };
-        }
-        return chat;
-      }));
-    } finally {
-      setIsGeneratingImage(false);
-    }
-  }, []);
 
   const handleRegenerate = useCallback(async (messageId: string) => {
     const { chats, activeChatId, isLoading, selectedModel, profile } = stateRef.current;
@@ -1096,6 +1009,10 @@ export default function App() {
       setIsSubmittingReport(false);
     }
   };
+
+  if (isMaintenance) {
+    return <MaintenanceMode />;
+  }
 
   if (!isLoaded || !isAuthReady) {
     return (
@@ -1456,32 +1373,6 @@ export default function App() {
                           onTap={() => setIsActionMenuInteracting(false)}
                           onTapCancel={() => setIsActionMenuInteracting(false)}
                           onClick={() => {
-                            const newMode = !isImageMode;
-                            setIsImageMode(newMode);
-                            if (newMode && !input.startsWith('Нарисуй')) {
-                              setInput('Нарисуй: ' + input);
-                            }
-                            setIsActionMenuOpen(false);
-                          }}
-                          className={`w-full flex items-center justify-between px-4 py-3 rounded-full text-sm font-medium transition-colors ${
-                            theme === 'dark' 
-                              ? 'hover:bg-white/10 active:bg-white/20 text-white' 
-                              : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <Paintbrush className={`w-4 h-4 ${isImageMode ? getAccentClass('text') : ''}`} />
-                            <span className={isImageMode ? getAccentClass('text') : ''}>Изображение</span>
-                          </div>
-                          {isImageMode && <Check className={`w-4 h-4 ${getAccentClass('text')}`} />}
-                        </motion.button>
-
-                        <motion.button
-                          whileTap={{ scale: 0.95 }}
-                          onTapStart={() => setIsActionMenuInteracting(true)}
-                          onTap={() => setIsActionMenuInteracting(false)}
-                          onTapCancel={() => setIsActionMenuInteracting(false)}
-                          onClick={() => {
                             setIsThinkingMode(!isThinkingMode);
                             setIsActionMenuOpen(false);
                           }}
@@ -1616,7 +1507,7 @@ export default function App() {
                 
                 {/* Top section: Pills and Image Preview */}
                 <AnimatePresence initial={false}>
-                  {(isThinkingMode || isImageMode) && (
+                  {isThinkingMode && (
                     <motion.div 
                       key="pills-container"
                       initial={{ opacity: 0, scaleY: 0.95 }}
@@ -1639,21 +1530,6 @@ export default function App() {
                               <Lightbulb className={`w-3.5 h-3.5 ${getAccentClass('text')}`} />
                               <span className={`text-[13px] font-medium ${getAccentClass('text')}`}>Размышления</span>
                               <button onClick={() => setIsThinkingMode(false)} className={`ml-1 ${getAccentClass('text')} hover:opacity-70 transition-opacity`}>
-                                <X className="w-3.5 h-3.5" />
-                              </button>
-                            </motion.div>
-                          )}
-                          {isImageMode && (
-                            <motion.div 
-                              key="image-mode"
-                              initial={{ scale: 0.8, opacity: 0 }}
-                              animate={{ scale: 1, opacity: 1 }}
-                              exit={{ scale: 0.8, opacity: 0 }}
-                              className={`flex items-center gap-1.5 shadow-sm rounded-full px-3 py-1.5 border ${theme === 'dark' ? 'bg-[#2a2a2a] border-white/10' : 'bg-white border-gray-100'}`}
-                            >
-                              <Paintbrush className={`w-3.5 h-3.5 ${getAccentClass('text')}`} />
-                              <span className={`text-[13px] font-medium ${getAccentClass('text')}`}>Изображение</span>
-                              <button onClick={() => setIsImageMode(false)} className={`ml-1 ${getAccentClass('text')} hover:opacity-70 transition-opacity`}>
                                 <X className="w-3.5 h-3.5" />
                               </button>
                             </motion.div>
