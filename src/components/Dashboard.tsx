@@ -47,15 +47,49 @@ const Dashboard = React.memo(({ theme, onActionClick, userName }: DashboardProps
         className="relative z-10 flex flex-col w-full max-w-5xl px-0 items-start"
       >
         {/* Widgets Container */}
-        <div className="flex flex-col items-start gap-3 mb-8">
-          {/* Action Widget */}
+        <div className="flex flex-wrap items-start gap-3 mb-8 w-full">
+          {/* Action Widget 1 */}
           <HoverWidget 
             onClick={() => onActionClick("Укрась мой день")}
-            glowColor="rgba(255, 255, 255, 0.2)"
-            className="flex items-center gap-3 px-5 py-3 rounded-full bg-gradient-to-r from-gray-500 to-gray-700 shadow-[0_8px_16px_rgba(107,114,128,0.3)] text-white cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all border border-gray-400/20 w-fit"
+            glowColor={theme === 'dark' ? "rgba(255, 255, 255, 0.15)" : "rgba(0, 0, 0, 0.1)"}
+            className={`flex items-center gap-3 px-5 py-3 rounded-full shadow-lg cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all border ${
+              theme === 'dark' 
+                ? 'bg-gradient-to-r from-zinc-800 to-zinc-900 border-white/10 text-white' 
+                : 'bg-gradient-to-r from-gray-100 to-gray-200 border-black/5 text-gray-900'
+            }`}
           >
-            <span className="relative z-10 text-xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">❓</span>
-            <span className="relative z-10 text-[14px] font-medium tracking-wide drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">Укрась мой день</span>
+            <span className="relative z-10 text-xl">❓</span>
+            <span className="relative z-10 text-[14px] font-medium tracking-wide">Укрась мой день</span>
+          </HoverWidget>
+
+          {/* Action Widget 2 */}
+          <HoverWidget 
+            onClick={() => onActionClick("Помоги мне с кодом")}
+            glowColor="rgba(59, 130, 246, 0.3)"
+            className="flex items-center gap-3 px-5 py-3 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 shadow-lg text-white cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all border border-blue-400/20"
+          >
+            <span className="relative z-10 text-xl">💻</span>
+            <span className="relative z-10 text-[14px] font-medium tracking-wide">Помоги мне с кодом</span>
+          </HoverWidget>
+
+          {/* Action Widget 3 */}
+          <HoverWidget 
+            onClick={() => onActionClick("Напиши письмо")}
+            glowColor="rgba(16, 185, 129, 0.3)"
+            className="flex items-center gap-3 px-5 py-3 rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 shadow-lg text-white cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all border border-emerald-400/20"
+          >
+            <span className="relative z-10 text-xl">✉️</span>
+            <span className="relative z-10 text-[14px] font-medium tracking-wide">Напиши письмо</span>
+          </HoverWidget>
+
+          {/* Action Widget 4 */}
+          <HoverWidget 
+            onClick={() => onActionClick("Объясни концепцию")}
+            glowColor="rgba(245, 158, 11, 0.3)"
+            className="flex items-center gap-3 px-5 py-3 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 shadow-lg text-white cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all border border-amber-400/20"
+          >
+            <span className="relative z-10 text-xl">💡</span>
+            <span className="relative z-10 text-[14px] font-medium tracking-wide">Объясни концепцию</span>
           </HoverWidget>
         </div>
 

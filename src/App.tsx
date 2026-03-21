@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import localforage from 'localforage';
-import { ArrowUp, ArrowDown, Menu, Settings, Trash2, Info, X, SquarePen, Plus, Paintbrush, ChevronLeft, Check, Square, AlertCircle, User, LogOut, Camera, Lightbulb, FlaskConical } from 'lucide-react';
+import { ArrowUp, ArrowDown, Menu, Settings, Trash2, Info, X, SquarePen, Plus, Paintbrush, ChevronLeft, Check, Square, AlertCircle, User, LogOut, Camera, Lightbulb, FlaskConical, Pencil } from 'lucide-react';
 import { motion, AnimatePresence, useAnimation } from 'motion/react';
 import { Chat, Message } from './types';
 import { generateGroqResponseStream } from './services/groq';
@@ -81,6 +81,8 @@ export default function App() {
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [isBanned, setIsBanned] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [activeChatMenu, setActiveChatMenu] = useState<{ chat: Chat, rect: DOMRect } | null>(null);
+  const [isChatMenuInteracting, setIsChatMenuInteracting] = useState(false);
 
   const [settingsView, setSettingsView] = useState<'main' | 'customization' | 'about' | 'account' | 'edit-profile' | 'color-selection'>('main');
   const [isSettingsInteracting, setIsSettingsInteracting] = useState(false);
@@ -1035,11 +1037,10 @@ export default function App() {
         filteredChats={filteredChats}
         activeChatId={activeChatId}
         setActiveChatId={setActiveChatId}
-        startEditingChat={startEditingChat}
-        deleteChat={deleteChat}
         setIsLoading={setIsLoading}
         editingChatId={editingChatId}
-        isMobile={isMobile}
+        onOpenChatMenu={(chat, rect) => setActiveChatMenu({ chat, rect })}
+        activeChatMenu={activeChatMenu}
       />
 
       {/* Main Content */}
@@ -1204,7 +1205,7 @@ export default function App() {
                     className="flex justify-start mb-10"
                   >
                     <div className="relative w-fit">
-                      <div className={`relative z-10 px-6 py-4 rounded-[2rem] glass-panel flex items-center gap-1.5`}>
+                      <div className={`relative z-10 px-6 py-4 rounded-[2rem] backdrop-blur-[20px] border flex items-center gap-1.5 ${theme === 'dark' ? 'bg-white/[0.08] border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' : 'bg-white/75 border-black/[0.08] shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'}`}>
                         <div className={`w-1.5 h-1.5 rounded-full ${getAccentClass('bg')} typing-dot`} style={{ animationDelay: '0s' }} />
                         <div className={`w-1.5 h-1.5 rounded-full ${getAccentClass('bg')} typing-dot`} style={{ animationDelay: '0.2s' }} />
                         <div className={`w-1.5 h-1.5 rounded-full ${getAccentClass('bg')} typing-dot`} style={{ animationDelay: '0.4s' }} />
@@ -1308,7 +1309,7 @@ export default function App() {
                       }}
                       exit={{ scale: 0, opacity: 0, z: 0, transition: { duration: 0.15, ease: "easeOut" } }}
                       style={{ transformOrigin: '24px calc(100% - 24px)', willChange: "transform, opacity" }}
-                      className={`absolute bottom-0 left-0 z-[200] w-64 rounded-[2rem] overflow-hidden p-2 hyper-glass hyper-glass-shadow`}
+                      className={`absolute bottom-0 left-0 z-[200] w-64 rounded-[2rem] overflow-hidden p-2 backdrop-blur-xl backdrop-saturate-150 border ${theme === 'dark' ? 'bg-white/[0.08] border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' : 'bg-white/75 border-black/[0.08] shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'}`}
                     >
                       <div className="flex flex-col">
                         <motion.button
@@ -1468,7 +1469,7 @@ export default function App() {
               )}
 
               {/* Input Bar Container */}
-              <div className={`relative z-10 flex flex-col rounded-[2rem] p-1.5 hyper-glass hyper-glass-shadow`}>
+              <div className={`relative z-10 flex flex-col rounded-[2rem] p-1.5 backdrop-blur-xl backdrop-saturate-150 border ${theme === 'dark' ? 'bg-white/[0.08] border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' : 'bg-white/75 border-black/[0.08] shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'}`}>
                 
                 {/* Top section: Pills and Image Preview */}
                 <AnimatePresence initial={false}>
@@ -1737,7 +1738,7 @@ export default function App() {
                 transformOrigin: 'calc(100% - 44px) 22px', 
                 willChange: "transform, opacity"
               }}
-              className={`fixed top-4 right-4 md:right-8 z-[201] w-72 rounded-[2rem] overflow-hidden p-4 hyper-glass hyper-glass-shadow`}
+              className={`fixed top-4 right-4 md:right-8 z-[201] w-72 rounded-[2rem] overflow-hidden p-4 backdrop-blur-xl backdrop-saturate-150 border ${theme === 'dark' ? 'bg-white/[0.08] border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' : 'bg-white/75 border-black/[0.08] shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'}`}
             >
               <div className="flex flex-col">
                 {user && (
@@ -1841,7 +1842,7 @@ export default function App() {
                 transformOrigin: 'calc(100% - 44px) 22px', 
                 willChange: "transform, opacity"
               }}
-              className={`fixed top-4 right-4 md:right-8 z-[201] w-72 rounded-[2rem] overflow-hidden p-4 hyper-glass hyper-glass-shadow`}
+              className={`fixed top-4 right-4 md:right-8 z-[201] w-72 rounded-[2rem] overflow-hidden p-4 backdrop-blur-xl backdrop-saturate-150 border ${theme === 'dark' ? 'bg-white/[0.08] border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' : 'bg-white/75 border-black/[0.08] shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'}`}
             >
               <div className="flex flex-col">
                 <div className="flex items-center gap-2 mb-4 px-2">
@@ -1978,7 +1979,7 @@ export default function App() {
                 transformOrigin: 'calc(100% - 44px) 22px', 
                 willChange: "transform, opacity"
               }}
-              className={`fixed top-4 right-4 md:right-8 z-[201] w-72 rounded-[2rem] overflow-hidden p-4 hyper-glass hyper-glass-shadow`}
+              className={`fixed top-4 right-4 md:right-8 z-[201] w-72 rounded-[2rem] overflow-hidden p-4 backdrop-blur-xl backdrop-saturate-150 border ${theme === 'dark' ? 'bg-white/[0.08] border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' : 'bg-white/75 border-black/[0.08] shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'}`}
             >
               <div className="flex flex-col">
                 <div className="flex items-center gap-2 mb-4 px-2">
@@ -2144,7 +2145,7 @@ export default function App() {
                 transformOrigin: 'calc(100% - 44px) 22px', 
                 willChange: "transform, opacity"
               }}
-              className={`fixed top-4 right-4 md:right-8 z-[201] w-56 rounded-[2rem] overflow-hidden p-4 hyper-glass hyper-glass-shadow`}
+              className={`fixed top-4 right-4 md:right-8 z-[201] w-56 rounded-[2rem] overflow-hidden p-4 backdrop-blur-xl backdrop-saturate-150 border ${theme === 'dark' ? 'bg-white/[0.08] border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' : 'bg-white/75 border-black/[0.08] shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'}`}
             >
               <div className="flex flex-col">
                 <div className="flex items-center gap-2 mb-4 px-2">
@@ -2195,7 +2196,7 @@ export default function App() {
                 transformOrigin: 'calc(100% - 44px) 22px', 
                 willChange: "transform, opacity"
               }}
-              className={`fixed top-4 right-4 md:right-8 z-[201] w-72 rounded-[2rem] overflow-hidden p-4 hyper-glass hyper-glass-shadow`}
+              className={`fixed top-4 right-4 md:right-8 z-[201] w-72 rounded-[2rem] overflow-hidden p-4 backdrop-blur-xl backdrop-saturate-150 border ${theme === 'dark' ? 'bg-white/[0.08] border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' : 'bg-white/75 border-black/[0.08] shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'}`}
             >
               <div className="flex flex-col">
                 <div className="flex items-center gap-2 mb-4 px-2">
@@ -2220,7 +2221,7 @@ export default function App() {
                     Версия
                   </span>
                   <span className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>
-                    1.3
+                    1.3(а)
                   </span>
                 </div>
 
@@ -2263,6 +2264,84 @@ export default function App() {
         isSubmitting={isSubmittingReport}
         type={reportContext?.type || 'report'}
       />
+
+      {/* Global Chat Menu Backdrop */}
+      <AnimatePresence>
+        {activeChatMenu && (
+          <motion.div
+            key="global-chat-menu-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            onClick={() => setActiveChatMenu(null)}
+            className="fixed inset-0 z-[1000] bg-black/10 backdrop-blur-[2px] pointer-events-auto"
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Global Chat Menu Content */}
+      <AnimatePresence>
+        {activeChatMenu && (
+          <motion.div
+            key="global-chat-menu-content"
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ 
+              scale: isChatMenuInteracting ? 0.95 : 1, 
+              opacity: 1,
+              transition: { type: "spring", damping: 25, stiffness: 300 } 
+            }}
+            exit={{ scale: 0, opacity: 0, transition: { duration: 0.15, ease: "easeOut" } }}
+            style={{ 
+              position: 'fixed',
+              top: activeChatMenu.rect.top,
+              left: activeChatMenu.rect.right - 192, // 192px is w-48
+              transformOrigin: 'calc(100% - 16px) 16px',
+              willChange: "transform, opacity",
+              zIndex: 1001
+            }}
+            className={`w-48 rounded-[2rem] overflow-hidden p-2 backdrop-blur-xl backdrop-saturate-150 border ${
+              theme === 'dark' ? 'bg-white/[0.12] border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' : 'bg-white/90 border-black/[0.08] shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'
+            }`}
+          >
+            <div className="flex flex-col">
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onTapStart={() => setIsChatMenuInteracting(true)}
+                onTap={() => setIsChatMenuInteracting(false)}
+                onTapCancel={() => setIsChatMenuInteracting(false)}
+                onClick={(e) => {
+                  startEditingChat(e, activeChatMenu.chat.id, activeChatMenu.chat.title);
+                  setActiveChatMenu(null);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-full text-sm font-medium transition-colors ${
+                  theme === 'dark' 
+                    ? 'hover:bg-white/10 active:bg-white/20 text-white' 
+                    : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
+                }`}
+              >
+                <Pencil className="w-4 h-4" />
+                <span>Переименовать</span>
+              </motion.button>
+
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onTapStart={() => setIsChatMenuInteracting(true)}
+                onTap={() => setIsChatMenuInteracting(false)}
+                onTapCancel={() => setIsChatMenuInteracting(false)}
+                onClick={(e) => {
+                  deleteChat(e, activeChatMenu.chat.id);
+                  setActiveChatMenu(null);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-full text-sm font-medium transition-colors text-red-500 hover:bg-red-500/10 active:bg-red-500/20`}
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Удалить</span>
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

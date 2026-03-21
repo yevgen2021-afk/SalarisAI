@@ -158,28 +158,17 @@ const ChatMessage = memo(({ id, role, content, theme, isTyping, accentColor, isG
       )}
       <div className="relative max-w-[85%] md:max-w-[75%] w-fit">
         <div className="relative">
-          {/* Finish Glow - Edges */}
-          {isGlowEnabled && (
-            <div className={`absolute -inset-[2px] z-0 transition-opacity duration-1000 ease-out blur-[8px] ${showFinishGlow ? 'opacity-100' : 'opacity-0'} pointer-events-none`}>
-              <div className="w-full h-full rounded-[2rem] overflow-hidden relative">
-                <div className="absolute top-1/2 left-1/2 w-[4000px] h-[4000px] max-w-none max-h-none bg-[conic-gradient(from_0deg,#ffb3ba,#ffdfba,#ffffba,#baffc9,#bae1ff,#dcbaff,#ffb3ba)] animate-spin-center"></div>
-              </div>
-            </div>
-          )}
-
-          {/* Finish Glow - Inner (Center to Edges) */}
-          {isGlowEnabled && (
-            <div className={`absolute inset-0 z-20 rounded-[2rem] transition-opacity duration-1000 ease-out ${showFinishGlow ? 'opacity-100' : 'opacity-0'} pointer-events-none mix-blend-overlay`}
-                 style={{ background: 'radial-gradient(ellipse at center, rgba(255,255,255,0.8) 0%, transparent 80%)' }}
-            />
-          )}
-
+          {/* Message Content */}
           <AnimatePresence mode="wait">
               <motion.div
                 key="text"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className={`relative z-10 px-4 py-2.5 rounded-[2rem] font-sans ${isUser ? `${getAccentClasses()} shadow-sm` : 'glass-panel'} transition-all duration-300`}
+                className={`relative z-10 px-4 py-2.5 rounded-[2rem] font-sans ${
+                  isUser 
+                    ? `${getAccentClasses()} shadow-sm` 
+                    : (theme === 'dark' ? 'bg-[#1a1a1a] border border-white/10 text-white' : 'bg-white border border-gray-200 text-gray-900 shadow-sm')
+                } transition-all duration-300`}
               >
                 <ReactMarkdown 
                   urlTransform={(url) => url}
