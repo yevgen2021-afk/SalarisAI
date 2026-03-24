@@ -52,10 +52,10 @@ const Dashboard = React.memo(({ theme, onActionClick, userName }: DashboardProps
           <HoverWidget 
             onClick={() => onActionClick("Укрась мой день")}
             glowColor={theme === 'dark' ? "rgba(255, 255, 255, 0.15)" : "rgba(0, 0, 0, 0.1)"}
-            className={`flex items-center gap-3 px-5 py-3 rounded-full shadow-lg cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all border ${
+            className={`flex items-center gap-3 px-5 py-3 rounded-full shadow-[0_0_15px_rgba(0,0,0,0.15)] cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all border ${
               theme === 'dark' 
                 ? 'bg-gradient-to-r from-zinc-800 to-zinc-900 border-white/20 text-white' 
-                : 'bg-gradient-to-r from-gray-100 to-gray-200 border-black/10 text-gray-900'
+                : 'bg-gradient-to-r from-gray-100 to-gray-200 border-black/10 text-black'
             }`}
           >
             <span className="relative z-10 text-xl">❓</span>
@@ -66,7 +66,7 @@ const Dashboard = React.memo(({ theme, onActionClick, userName }: DashboardProps
           <HoverWidget 
             onClick={() => onActionClick("Помоги мне с кодом")}
             glowColor="rgba(59, 130, 246, 0.3)"
-            className="flex items-center gap-3 px-5 py-3 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 shadow-lg text-white cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all border border-blue-400/20"
+            className="flex items-center gap-3 px-5 py-3 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 shadow-[0_0_15px_rgba(0,0,0,0.15)] text-white cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all border border-blue-400/20"
           >
             <span className="relative z-10 text-xl">💻</span>
             <span className="relative z-10 text-[14px] font-medium tracking-wide">Помоги мне с кодом</span>
@@ -76,7 +76,7 @@ const Dashboard = React.memo(({ theme, onActionClick, userName }: DashboardProps
           <HoverWidget 
             onClick={() => onActionClick("Напиши письмо")}
             glowColor="rgba(16, 185, 129, 0.3)"
-            className="flex items-center gap-3 px-5 py-3 rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 shadow-lg text-white cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all border border-emerald-400/20"
+            className="flex items-center gap-3 px-5 py-3 rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 shadow-[0_0_15px_rgba(0,0,0,0.15)] text-white cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all border border-emerald-400/20"
           >
             <span className="relative z-10 text-xl">✉️</span>
             <span className="relative z-10 text-[14px] font-medium tracking-wide">Напиши письмо</span>
@@ -86,7 +86,7 @@ const Dashboard = React.memo(({ theme, onActionClick, userName }: DashboardProps
           <HoverWidget 
             onClick={() => onActionClick("Объясни концепцию")}
             glowColor="rgba(245, 158, 11, 0.3)"
-            className="flex items-center gap-3 px-5 py-3 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 shadow-lg text-white cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all border border-amber-400/20"
+            className="flex items-center gap-3 px-5 py-3 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 shadow-[0_0_15px_rgba(0,0,0,0.15)] text-white cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all border border-amber-400/20"
           >
             <span className="relative z-10 text-xl">💡</span>
             <span className="relative z-10 text-[14px] font-medium tracking-wide">Объясни концепцию</span>
@@ -95,7 +95,7 @@ const Dashboard = React.memo(({ theme, onActionClick, userName }: DashboardProps
 
         {/* Header Text */}
         <div 
-          className={`font-montserrat font-medium ${theme === 'dark' ? 'text-white' : 'text-black'}`}
+          className={`font-montserrat font-medium ${theme === 'dark' ? 'text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]' : 'text-black drop-shadow-[0_2px_8px_rgba(255,255,255,0.8)]'}`}
         >
           <div className="text-lg">Привет, {displayName}!</div>
           <div className="text-2xl mt-1">С чего начнем?</div>

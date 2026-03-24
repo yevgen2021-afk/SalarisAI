@@ -10,6 +10,7 @@ interface ChatMessageProps {
   id: string;
   role: 'user' | 'model';
   content: string;
+  images?: string[];
   theme: 'dark' | 'light';
   isTyping?: boolean;
   accentColor: string;
@@ -20,7 +21,7 @@ interface ChatMessageProps {
   onDislike?: (id: string) => void;
 }
 
-const ChatMessage = memo(({ id, role, content, theme, isTyping, accentColor, isGlowEnabled, onRegenerate, onReport, onLike, onDislike }: ChatMessageProps) => {
+const ChatMessage = memo(({ id, role, content, images, theme, isTyping, accentColor, isGlowEnabled, onRegenerate, onReport, onLike, onDislike }: ChatMessageProps) => {
   const isUser = role === 'user';
   const [showFinishGlow, setShowFinishGlow] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
@@ -94,13 +95,13 @@ const ChatMessage = memo(({ id, role, content, theme, isTyping, accentColor, isG
         />
       );
     },
-    p: ({node, ...props}: any) => <p className={`mb-3 last:mb-0 leading-relaxed text-[16px] font-medium ${isUser ? 'text-white' : (theme === 'dark' ? 'text-gray-100' : 'text-gray-800')}`} {...props} />,
+    p: ({node, ...props}: any) => <p className={`mb-3 last:mb-0 leading-relaxed text-[16px] font-medium ${isUser ? 'text-white' : (theme === 'dark' ? 'text-white' : 'text-black')}`} {...props} />,
     a: ({node, ...props}: any) => <a className={`${isUser ? 'text-white underline' : 'text-pink-400 hover:text-pink-300 underline'} underline-offset-4 transition-colors text-[16px]`} {...props} />,
-    strong: ({node, ...props}: any) => <strong className={`font-bold ${isUser ? 'text-white' : (theme === 'dark' ? 'text-white' : 'text-gray-900')}`} {...props} />,
+    strong: ({node, ...props}: any) => <strong className={`font-bold ${isUser ? 'text-white' : (theme === 'dark' ? 'text-white' : 'text-black')}`} {...props} />,
     ul: ({node, ...props}: any) => <ul className="list-disc pl-6 mb-3 space-y-2 text-[16px]" {...props} />,
     ol: ({node, ...props}: any) => <ol className="list-decimal pl-6 mb-3 space-y-2 text-[16px]" {...props} />,
-    li: ({node, ...props}: any) => <li className={`leading-relaxed text-[16px] font-medium ${isUser ? 'text-white' : (theme === 'dark' ? 'text-gray-100' : 'text-gray-800')}`} {...props} />,
-    blockquote: ({node, ...props}: any) => <blockquote className={`border-l-4 pl-4 italic my-3 ${isUser ? 'border-white/50 text-white/90' : (theme === 'dark' ? 'border-gray-500 text-gray-300' : 'border-gray-400 text-gray-600')}`} {...props} />,
+    li: ({node, ...props}: any) => <li className={`leading-relaxed text-[16px] font-medium ${isUser ? 'text-white' : (theme === 'dark' ? 'text-white' : 'text-black')}`} {...props} />,
+    blockquote: ({node, ...props}: any) => <blockquote className={`border-l-4 pl-4 italic my-3 ${isUser ? 'border-white/50 text-white/90' : (theme === 'dark' ? 'border-gray-500 text-white' : 'border-gray-400 text-black')}`} {...props} />,
     code: ({node, className, children, ...props}: any) => {
       const match = /language-(\w+)/.exec(className || '')
       const isInline = !match && !className;
@@ -108,7 +109,7 @@ const ChatMessage = memo(({ id, role, content, theme, isTyping, accentColor, isG
       if (!isInline && match) {
         return (
           <div className="my-4 rounded-xl overflow-hidden border border-white/20 shadow-sm">
-            <div className="flex items-center justify-between px-4 py-2 bg-black/20 text-xs text-gray-400 font-mono border-b border-white/20">
+            <div className="flex items-center justify-between px-4 py-2 bg-black/20 text-xs text-white font-mono border-b border-white/20">
               <span>{match[1]}</span>
             </div>
             <SyntaxHighlighter
@@ -124,7 +125,7 @@ const ChatMessage = memo(({ id, role, content, theme, isTyping, accentColor, isG
       }
       
       return (
-        <code className={`${isUser ? 'bg-black/10 text-white' : (theme === 'dark' ? 'bg-white/10 text-pink-300' : 'bg-black/5 text-pink-600')} px-1.5 py-0.5 rounded-md text-sm font-mono`} {...props}>
+        <code className={`${isUser ? 'bg-black/10 text-white' : (theme === 'dark' ? 'bg-black/40 text-pink-300' : 'bg-black/5 text-pink-600')} px-1.5 py-0.5 rounded-md text-sm font-mono`} {...props}>
           {children}
         </code>
       )
@@ -135,8 +136,8 @@ const ChatMessage = memo(({ id, role, content, theme, isTyping, accentColor, isG
       </div>
     ),
     thead: ({node, ...props}: any) => <thead className={theme === 'dark' ? 'bg-white/5' : 'bg-black/5'} {...props} />,
-    th: ({node, ...props}: any) => <th className={`p-3 font-semibold border-b ${theme === 'dark' ? 'border-white/20 text-gray-200' : 'border-black/10 text-gray-800'}`} {...props} />,
-    td: ({node, ...props}: any) => <td className={`p-3 border-b ${theme === 'dark' ? 'border-white/20 text-gray-300' : 'border-black/10 text-gray-700'}`} {...props} />,
+    th: ({node, ...props}: any) => <th className={`p-3 font-semibold border-b ${theme === 'dark' ? 'border-white/20 text-white' : 'border-black/10 text-black'}`} {...props} />,
+    td: ({node, ...props}: any) => <td className={`p-3 border-b ${theme === 'dark' ? 'border-white/20 text-white' : 'border-black/10 text-black'}`} {...props} />,
     tr: ({node, ...props}: any) => <tr className={theme === 'dark' ? 'hover:bg-white/5 transition-colors' : 'hover:bg-black/5 transition-colors'} {...props} />
   }), [isUser, theme]);
 
@@ -144,13 +145,13 @@ const ChatMessage = memo(({ id, role, content, theme, isTyping, accentColor, isG
     <motion.div
       initial={{ opacity: 0, y: 20, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      style={{ transformOrigin: 'center', willChange: "transform, opacity" }}
+      style={{ transformOrigin: 'center' }}
       className={`flex w-full ${isUser ? 'justify-end' : 'justify-start'} mb-12 group`}
     >
       {isUser && (
         <button 
           onClick={handleCopy}
-          className={`mr-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 p-2 rounded-full self-center ${theme === 'dark' ? 'hover:bg-white/10 text-gray-400 hover:text-gray-200' : 'hover:bg-black/5 text-gray-500 hover:text-gray-700'}`}
+          className={`mr-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 p-2 rounded-full self-center ${theme === 'dark' ? 'hover:bg-white/10 text-white hover:text-white' : 'hover:bg-black/5 text-black hover:text-black'}`}
           title="Копировать"
         >
           {isCopied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
@@ -158,16 +159,26 @@ const ChatMessage = memo(({ id, role, content, theme, isTyping, accentColor, isG
       )}
       <div className="relative max-w-[85%] md:max-w-[75%] w-fit">
         <div className="relative">
+          {/* Glow Effect */}
+          {!isUser && isGlowEnabled && (
+            <div className={`absolute -inset-[1px] z-0 transition-opacity duration-700 blur-[8px] ${isTyping || showFinishGlow ? 'opacity-100' : 'opacity-0'}`}>
+              <div className="w-full h-full rounded-[2rem] overflow-hidden relative">
+                <div className="absolute top-1/2 left-1/2 w-[4000px] h-[4000px] max-w-none max-h-none bg-[conic-gradient(from_0deg,#ffb3ba,#ffdfba,#ffffba,#baffc9,#bae1ff,#dcbaff,#ffb3ba)] animate-spin-center"></div>
+              </div>
+            </div>
+          )}
           {/* Message Content */}
           <AnimatePresence mode="wait">
               <motion.div
                 key="text"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className={`relative z-10 px-4 py-2.5 rounded-[2rem] font-sans ${
+                className={`relative z-10 px-4 py-2.5 rounded-[2rem] font-sans backdrop-blur-xl backdrop-saturate-150 ${
                   isUser 
                     ? `${getAccentClasses()} shadow-sm` 
-                    : (theme === 'dark' ? 'bg-[#1a1a1a] border border-white/20 text-white' : 'bg-white border border-black/10 text-gray-900 shadow-sm')
+                    : (theme === 'dark' 
+                        ? 'bg-black/40 border border-white/20 text-white shadow-[0_0_15px_rgba(0,0,0,0.1)]' 
+                        : 'bg-white/60 border border-white/40 text-black shadow-[0_0_15px_rgba(0,0,0,0.12)]')
                 } transition-all duration-300`}
               >
                 <ReactMarkdown 
@@ -177,52 +188,69 @@ const ChatMessage = memo(({ id, role, content, theme, isTyping, accentColor, isG
                 >
               {content}
             </ReactMarkdown>
+            {images && images.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {images.map((img, idx) => (
+                  <img key={idx} src={img} alt="Uploaded" className="max-w-[200px] max-h-[200px] rounded-xl object-cover border border-white/20 shadow-sm" />
+                ))}
+              </div>
+            )}
           </motion.div>
         </AnimatePresence>
         </div>
 
         {/* Action Icons */}
         {!isUser && (
-          <div className={`absolute top-full left-2 mt-2 flex items-center gap-1 transition-opacity duration-500 z-10 ${showActions ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-            <div className="flex items-center gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200">
-              <button 
+          <div className={`absolute top-full left-2 mt-2 flex items-center gap-2 transition-opacity duration-500 z-20 ${showActions ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+            <div className="flex items-center gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200">
+              <motion.button 
+                whileHover={{ scale: 1.15 }}
+                whileTap={{ scale: 1.1 }}
                 onClick={() => onLike?.(id)}
-                className={`p-2 rounded-full transition-colors ${theme === 'dark' ? 'hover:bg-white/10 text-gray-400 hover:text-emerald-400' : 'hover:bg-black/5 text-gray-500 hover:text-emerald-600'}`}
+                className={`p-1.5 rounded-full transition-colors backdrop-blur-xl backdrop-saturate-150 ${theme === 'dark' ? 'bg-black/40 border border-white/20 text-white hover:text-emerald-400 shadow-[0_0_15px_rgba(0,0,0,0.1)]' : 'bg-white/60 border border-white/40 text-black hover:text-emerald-600 shadow-[0_0_15px_rgba(0,0,0,0.12)]'}`}
                 title="Лайк"
               >
-                <ThumbsUp className="w-4 h-4" />
-              </button>
-              <button 
+                <ThumbsUp className="w-3.5 h-3.5" />
+              </motion.button>
+              <motion.button 
+                whileHover={{ scale: 1.15 }}
+                whileTap={{ scale: 1.1 }}
                 onClick={() => onDislike?.(id)}
-                className={`p-2 rounded-full transition-colors ${theme === 'dark' ? 'hover:bg-white/10 text-gray-400 hover:text-orange-400' : 'hover:bg-black/5 text-gray-500 hover:text-orange-600'}`}
+                className={`p-1.5 rounded-full transition-colors backdrop-blur-xl backdrop-saturate-150 ${theme === 'dark' ? 'bg-black/40 border border-white/20 text-white hover:text-orange-400 shadow-[0_0_15px_rgba(0,0,0,0.1)]' : 'bg-white/60 border border-white/40 text-black hover:text-orange-600 shadow-[0_0_15px_rgba(0,0,0,0.12)]'}`}
                 title="Дизлайк"
               >
-                <ThumbsDown className="w-4 h-4" />
-              </button>
-              <button 
+                <ThumbsDown className="w-3.5 h-3.5" />
+              </motion.button>
+              <motion.button 
+                whileHover={{ scale: 1.15 }}
+                whileTap={{ scale: 1.1 }}
                 onClick={handleCopy}
-                className={`p-2 rounded-full transition-colors ${theme === 'dark' ? 'hover:bg-white/10 text-gray-400 hover:text-gray-200' : 'hover:bg-black/5 text-gray-500 hover:text-gray-700'}`}
+                className={`p-1.5 rounded-full transition-colors backdrop-blur-xl backdrop-saturate-150 ${theme === 'dark' ? 'bg-black/40 border border-white/20 text-white hover:text-white shadow-[0_0_15px_rgba(0,0,0,0.1)]' : 'bg-white/60 border border-white/40 text-black hover:text-black shadow-[0_0_15px_rgba(0,0,0,0.12)]'}`}
                 title="Копировать"
               >
-                {isCopied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
-              </button>
+                {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+              </motion.button>
               {onRegenerate && (
-                <button 
+                <motion.button 
+                  whileHover={{ scale: 1.15 }}
+                  whileTap={{ scale: 1.1 }}
                   onClick={() => onRegenerate(id)}
-                  className={`p-2 rounded-full transition-colors ${theme === 'dark' ? 'hover:bg-white/10 text-gray-400 hover:text-gray-200' : 'hover:bg-black/5 text-gray-500 hover:text-gray-700'}`}
+                  className={`p-1.5 rounded-full transition-colors backdrop-blur-xl backdrop-saturate-150 ${theme === 'dark' ? 'bg-black/40 border border-white/20 text-white hover:text-white shadow-[0_0_15px_rgba(0,0,0,0.1)]' : 'bg-white/60 border border-white/40 text-black hover:text-black shadow-[0_0_15px_rgba(0,0,0,0.12)]'}`}
                   title="Переделать ответ"
                 >
-                  <RefreshCw className="w-4 h-4" />
-                </button>
+                  <RefreshCw className="w-3.5 h-3.5" />
+                </motion.button>
               )}
               {onReport && (
-                <button 
+                <motion.button 
+                  whileHover={{ scale: 1.15 }}
+                  whileTap={{ scale: 1.1 }}
                   onClick={() => onReport(id)}
-                  className={`p-2 rounded-full transition-colors ${theme === 'dark' ? 'hover:bg-white/10 text-gray-400 hover:text-red-400' : 'hover:bg-black/5 text-gray-500 hover:text-red-500'}`}
+                  className={`p-1.5 rounded-full transition-colors backdrop-blur-xl backdrop-saturate-150 ${theme === 'dark' ? 'bg-black/40 border border-white/20 text-white hover:text-red-400 shadow-[0_0_15px_rgba(0,0,0,0.1)]' : 'bg-white/60 border border-white/40 text-black hover:text-red-500 shadow-[0_0_15px_rgba(0,0,0,0.12)]'}`}
                   title="Сообщить об ошибке"
                 >
-                  <AlertCircle className="w-4 h-4" />
-                </button>
+                  <AlertCircle className="w-3.5 h-3.5" />
+                </motion.button>
               )}
             </div>
           </div>

@@ -20,10 +20,10 @@ export default function BlockedScreen({ theme, onLogout }: BlockedScreenProps) {
         <div className="w-20 h-20 bg-red-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
           <AlertCircle className="w-10 h-10 text-red-500" />
         </div>
-        <h2 className={`text-2xl font-bold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+        <h2 className={`text-2xl font-bold mb-4 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
           Доступ ограничен
         </h2>
-        <p className={`mb-8 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+        <p className={`mb-8 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
           Ваш аккаунт был заблокирован администрацией Salaris AI за нарушение правил использования сервиса.
         </p>
         <button

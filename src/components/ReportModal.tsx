@@ -74,18 +74,18 @@ export default function ReportModal({ isOpen, onClose, onSubmit, theme, isSubmit
           >
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className={`text-xl font-display font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                <h3 className={`text-xl font-outfit font-semibold ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
                   {getTitle()}
                 </h3>
                 <button
                   onClick={onClose}
-                  className={`p-2 rounded-full transition-colors ${theme === 'dark' ? 'hover:bg-white/10 text-gray-400' : 'hover:bg-black/5 text-gray-500'}`}
+                  className={`p-2 rounded-full transition-colors ${theme === 'dark' ? 'hover:bg-white/10 text-white' : 'hover:bg-black/5 text-black'}`}
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
               
-              <p className={`text-sm mb-4 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+              <p className={`text-sm mb-4 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
                 {getDescription()}
               </p>
 
@@ -95,8 +95,8 @@ export default function ReportModal({ isOpen, onClose, onSubmit, theme, isSubmit
                 placeholder={getPlaceholder()}
                 className={`w-full h-32 p-4 rounded-2xl resize-none outline-none transition-colors ${
                   theme === 'dark' 
-                    ? 'bg-white/5 border border-white/10 text-white placeholder:text-gray-500 focus:border-white/20 focus:bg-white/10' 
-                    : 'bg-gray-50 border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-gray-300 focus:bg-white'
+                    ? 'bg-white/5 border border-white/10 text-white placeholder:text-white/60 focus:border-white/20 focus:bg-white/10' 
+                    : 'bg-gray-50 border border-gray-200 text-black placeholder:text-black/60 focus:border-gray-300 focus:bg-white'
                 }`}
               />
 
@@ -106,7 +106,7 @@ export default function ReportModal({ isOpen, onClose, onSubmit, theme, isSubmit
                   className={`flex-1 py-3 rounded-xl font-medium transition-colors ${
                     theme === 'dark'
                       ? 'bg-white/10 hover:bg-white/20 text-white'
-                      : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
+                      : 'bg-gray-100 hover:bg-gray-200 text-black'
                   }`}
                 >
                   Отмена

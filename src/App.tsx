@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
 import localforage from 'localforage';
-import { ArrowUp, ArrowDown, Menu, Settings, Trash2, Info, X, SquarePen, Plus, Paintbrush, ChevronLeft, Check, Square, AlertCircle, User, LogOut, Camera, Lightbulb, FlaskConical, Pencil } from 'lucide-react';
+import { ArrowUp, ArrowDown, Menu, Settings, Trash2, Info, X, SquarePen, Plus, Paintbrush, ChevronLeft, Check, Square, AlertCircle, User, LogOut, Camera, Lightbulb, FlaskConical, Pencil, PanelLeft, Image, Upload, Cpu, Layout, Droplet, Wrench } from 'lucide-react';
 import { motion, AnimatePresence, useAnimation } from 'motion/react';
 import { Chat, Message } from './types';
 import { generateGroqResponseStream } from './services/groq';
@@ -10,7 +10,7 @@ import Sidebar from './components/Sidebar';
 import AuthScreen from './components/AuthScreen';
 import BlockedScreen from './components/BlockedScreen';
 import ReportModal from './components/ReportModal';
-import MaintenanceMode from './components/MaintenanceMode';
+import WallpaperSettings from './components/WallpaperSettings';
 import { supabase } from './lib/supabase';
 
 const createNewChat = (): Chat => ({
@@ -48,7 +48,7 @@ const ColorOptionButton = ({ color, theme, accentColor, setAccentColor, setIsSet
       className={`w-full flex items-center justify-between px-4 py-3 rounded-full transition-colors ${
         theme === 'dark' 
           ? 'hover:bg-white/10 active:bg-white/20 text-white' 
-          : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
+          : 'hover:bg-black/5 active:bg-black/10 text-black'
       }`}
     >
       <div className="flex items-center gap-3">
@@ -63,7 +63,6 @@ const ColorOptionButton = ({ color, theme, accentColor, setAccentColor, setIsSet
 };
 
 export default function App() {
-  const [isMaintenance] = useState(true); // Set to true to block the app
   const [isLoaded, setIsLoaded] = useState(false);
   const [chats, setChats] = useState<Chat[]>([createNewChat()]);
   const [activeChatId, setActiveChatId] = useState<string>('');
@@ -73,6 +72,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [showUpdateModal, setShowUpdateModal] = useState(() => !localStorage.getItem('v1.4_seen'));
   const [theme, setTheme] = useState<'dark' | 'light'>('light');
   const [autoTheme, setAutoTheme] = useState<boolean>(false);
   const [accentColor, setAccentColor] = useState<string>('laguna');
@@ -86,7 +86,8 @@ export default function App() {
   const [activeChatMenu, setActiveChatMenu] = useState<{ chat: Chat, rect: DOMRect } | null>(null);
   const [isChatMenuInteracting, setIsChatMenuInteracting] = useState(false);
 
-  const [settingsView, setSettingsView] = useState<'main' | 'customization' | 'about' | 'account' | 'edit-profile' | 'color-selection'>('main');
+  const [settingsView, setSettingsView] = useState<'main' | 'customization' | 'about' | 'account' | 'edit-profile' | 'color-selection' | 'wallpaper'>('main');
+  const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
   const [isSettingsInteracting, setIsSettingsInteracting] = useState(false);
   const [profile, setProfile] = useState<{ display_name?: string, avatar_url?: string } | null>(null);
   const [tempName, setTempName] = useState('');
@@ -272,7 +273,7 @@ export default function App() {
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
   const [isActionMenuInteracting, setIsActionMenuInteracting] = useState(false);
   const [actionMenuView, setActionMenuView] = useState<'main' | 'model'>('main');
-  const [selectedModel, setSelectedModel] = useState<'llama-3.3-70b-versatile' | 'meta-llama/llama-4-scout-17b-16e-instruct'>('meta-llama/llama-4-scout-17b-16e-instruct');
+  const [selectedModel, setSelectedModel] = useState<'moonshotai/kimi-k2-instruct-0905' | 'meta-llama/llama-4-scout-17b-16e-instruct'>('meta-llama/llama-4-scout-17b-16e-instruct');
   const [isThinkingMode, setIsThinkingMode] = useState<boolean>(false);
   
   const stateRef = useRef({ chats, activeChatId, isLoading, selectedModel, isThinkingMode, profile });
@@ -395,6 +396,7 @@ export default function App() {
         const storedAccentColor = await localforage.getItem<string>('salaris_accent');
         const storedGlow = await localforage.getItem<boolean>('salaris_glow');
         const storedModel = await localforage.getItem<string>('salaris_model');
+        const storedWallpaper = await localforage.getItem<string>('salaris_wallpaper');
 
         if (storedChats && storedChats.length > 0) {
           let newChats = storedChats;
@@ -423,12 +425,13 @@ export default function App() {
         if (storedAutoTheme !== null) setAutoTheme(storedAutoTheme);
         if (storedAccentColor) setAccentColor(storedAccentColor);
         if (storedGlow !== null) setIsGlowEnabled(storedGlow);
-        if (['llama-3.3-70b-versatile', 'meta-llama/llama-4-scout-17b-16e-instruct'].includes(storedModel || '')) {
+        if (['moonshotai/kimi-k2-instruct-0905', 'meta-llama/llama-4-scout-17b-16e-instruct'].includes(storedModel || '')) {
           setSelectedModel(storedModel as any);
         } else {
           setSelectedModel('meta-llama/llama-4-scout-17b-16e-instruct');
           localforage.setItem('salaris_model', 'meta-llama/llama-4-scout-17b-16e-instruct');
         }
+        if (storedWallpaper) setBackgroundImage(storedWallpaper);
       } catch (error) {
         // Silently handle localforage load errors
       } finally {
@@ -451,10 +454,15 @@ export default function App() {
       localforage.setItem('salaris_accent', accentColor);
       localforage.setItem('salaris_glow', isGlowEnabled);
       localforage.setItem('salaris_model', selectedModel);
+      if (backgroundImage) {
+        localforage.setItem('salaris_wallpaper', backgroundImage);
+      } else {
+        localforage.removeItem('salaris_wallpaper');
+      }
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [chats, activeChatId, theme, autoTheme, accentColor, isGlowEnabled, selectedModel, isLoaded]);
+  }, [chats, activeChatId, theme, autoTheme, accentColor, isGlowEnabled, selectedModel, backgroundImage, isLoaded]);
 
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
@@ -466,6 +474,15 @@ export default function App() {
   const isUserScrolling = useRef(false);
   const touchStartX = useRef<number | null>(null);
   const touchEndX = useRef<number | null>(null);
+
+  useLayoutEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = '0px';
+      const scrollHeight = textarea.scrollHeight;
+      textarea.style.height = `${Math.max(36, Math.min(scrollHeight, 136))}px`;
+    }
+  }, [input]);
 
   useEffect(() => {
     if (!isActionMenuOpen) {
@@ -609,6 +626,8 @@ export default function App() {
     setActiveChatId(newChat.id);
     setIsScrolled(false);
     setIsAtBottom(true);
+    setShowScrollToBottom(false);
+    isUserScrolling.current = false;
     setIsLoading(false);
     setIsSidebarOpen(false);
     setSelectedFiles([]);
@@ -681,18 +700,28 @@ export default function App() {
     
     setInput('');
     setSelectedFiles([]);
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-    }
     setIsThinkingMode(false);
     setIsLoading(true);
     setIsGenerating(true);
     stopGenerationRef.current = false;
 
+    const fileToBase64 = (file: File): Promise<string> => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = error => reject(error);
+      });
+    };
+
+    const base64Images = currentFiles.length > 0 ? await Promise.all(currentFiles.map(fileToBase64)) : undefined;
+    const finalUserMsg = userMsg || (base64Images ? 'Посмотри на это изображение' : '');
+
     const userMessage: Message = { 
       id: Date.now().toString(), 
       role: 'user', 
-      content: userMsg
+      content: finalUserMsg,
+      images: base64Images
     };
 
     setChats(prev => prev.map(chat => {
@@ -700,7 +729,7 @@ export default function App() {
         const isFirstUserMessage = chat.messages.length === 0;
         return {
           ...chat,
-          title: isFirstUserMessage ? (userMsg || 'Изображение').slice(0, 25) + (userMsg.length > 25 ? '...' : '') : chat.title,
+          title: isFirstUserMessage ? (finalUserMsg || 'Изображение').slice(0, 25) + (finalUserMsg.length > 25 ? '...' : '') : chat.title,
           messages: [...chat.messages, userMessage]
         };
       }
@@ -713,7 +742,8 @@ export default function App() {
     try {
       const chatHistory = activeChat ? activeChat.messages : [];
       
-      const stream = generateGroqResponseStream(userMsg, selectedModel, chatHistory, profile?.display_name);
+      const modelToUse = currentThinkingMode ? 'moonshotai/kimi-k2-instruct-0905' : selectedModel;
+      const stream = generateGroqResponseStream(finalUserMsg, modelToUse, chatHistory, profile?.display_name, currentThinkingMode, base64Images);
 
       let isFirstChunk = true;
       let currentTyped = '';
@@ -765,7 +795,7 @@ export default function App() {
       if (error instanceof Error) {
         errorText = error.message;
         if (errorText.includes('429') || errorText.includes('quota') || errorText.includes('RESOURCE_EXHAUSTED')) {
-          errorText = `Превышен лимит запросов к API (Quota Exceeded). Пожалуйста, подождите (лимиты сбрасываются) или проверьте настройки вашего аккаунта.`;
+          errorText = `Превышен лимит запросов к API (Quota Exceeded). Пожалуйста, подождите (лимиты сбрасываются) или проверьте ваш аккаунт.`;
         } else if (errorText.includes('{')) {
           try {
             // Attempt to extract a cleaner message if it's JSON
@@ -832,6 +862,9 @@ export default function App() {
     
     const lastUserMsg = chat.messages[lastUserMsgIndex];
     const userMsgContent = lastUserMsg.content;
+    const userMsgImages = lastUserMsg.images;
+    const currentThinkingMode = stateRef.current.isThinkingMode;
+    setIsThinkingMode(false);
     
     setChats(prev => prev.map(c => {
       if (c.id === activeChatId) {
@@ -851,7 +884,8 @@ export default function App() {
     try {
       const chatHistory = chat ? chat.messages.slice(0, lastUserMsgIndex) : [];
       
-      const stream = generateGroqResponseStream(userMsgContent, selectedModel, chatHistory, profile?.display_name);
+      const modelToUse = currentThinkingMode ? 'moonshotai/kimi-k2-instruct-0905' : selectedModel;
+      const stream = generateGroqResponseStream(userMsgContent, modelToUse, chatHistory, profile?.display_name, currentThinkingMode, userMsgImages);
 
       let isFirstChunk = true;
       let currentTyped = '';
@@ -898,7 +932,7 @@ export default function App() {
       if (error instanceof Error) {
         errorText = error.message;
         if (errorText.includes('429') || errorText.includes('quota') || errorText.includes('RESOURCE_EXHAUSTED')) {
-          errorText = `Превышен лимит запросов к API (Quota Exceeded). Пожалуйста, подождите (лимиты сбрасываются) или проверьте настройки вашего аккаунта.`;
+          errorText = `Превышен лимит запросов к API (Quota Exceeded). Пожалуйста, подождите (лимиты сбрасываются) или проверьте ваш аккаунт.`;
         } else if (errorText.includes('{')) {
           try {
             const match = errorText.match(/"message":\s*"([^"]+)"/);
@@ -1010,10 +1044,6 @@ export default function App() {
     }
   };
 
-  if (isMaintenance) {
-    return <MaintenanceMode />;
-  }
-
   if (!isLoaded || !isAuthReady) {
     return (
       <div className={`flex h-screen items-center justify-center ${theme === 'dark' ? 'bg-[#050505]' : 'bg-[#f8f9fa]'}`}>
@@ -1035,8 +1065,16 @@ export default function App() {
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      className={`flex h-screen ${theme === 'dark' ? 'bg-[#050505] text-white' : 'bg-white text-gray-900'} font-sans selection:bg-red-500/30 overflow-hidden transition-colors duration-500 relative`}
+      style={backgroundImage ? { 
+        backgroundImage: `url(${backgroundImage})`, 
+        backgroundSize: 'cover', 
+        backgroundPosition: 'center' 
+      } : {}}
+      className={`flex h-screen ${theme === 'dark' ? 'bg-[#050505] text-white' : 'bg-white text-black'} font-sans selection:bg-red-500/30 overflow-hidden transition-colors duration-500 relative`}
     >
+      {backgroundImage && (
+        <div className={`absolute inset-0 z-0 backdrop-blur-[3px] pointer-events-none transition-colors duration-500 ${theme === 'dark' ? 'bg-black/20' : 'bg-transparent'}`} />
+      )}
       
       <Sidebar 
         isSidebarOpen={isSidebarOpen}
@@ -1075,14 +1113,18 @@ export default function App() {
           restDelta: 0.001
         }}
         style={{ willChange: 'transform, border-radius' }}
-        className={`flex-1 flex flex-col min-w-0 relative z-10 overflow-hidden border-l shadow-2xl ${theme === 'dark' ? 'bg-[#050505]' : 'bg-[#f8f9fa]'}`}
+        className={`flex-1 flex flex-col min-w-0 relative z-10 overflow-hidden border-l shadow-2xl ${backgroundImage ? 'bg-transparent' : (theme === 'dark' ? 'bg-[#050505]' : 'bg-[#f8f9fa]')}`}
       >
         {/* Ambient Glow Background - Moved inside to clip with rounded corners and move with content */}
         <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-[#ff0080] ambient-blob animate-[ambient-blob-1_20s_ease-in-out_infinite]"></div>
-          <div className="absolute top-[40%] right-[-10%] w-[40vw] h-[40vw] bg-[#8000ff] ambient-blob animate-[ambient-blob-2_25s_ease-in-out_infinite]"></div>
-          <div className="absolute bottom-[-10%] left-[20%] w-[60vw] h-[60vw] bg-[#0080ff] ambient-blob animate-[ambient-blob-3_22s_ease-in-out_infinite]"></div>
-          <div className="absolute top-[10%] right-[20%] w-[30vw] h-[30vw] bg-[#00ff80] ambient-blob animate-[ambient-blob-1_28s_ease-in-out_infinite_reverse]"></div>
+          {isGlowEnabled && !backgroundImage && (
+            <>
+              <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-[#ff0080] ambient-blob"></div>
+              <div className="absolute top-[40%] right-[-10%] w-[40vw] h-[40vw] bg-[#8000ff] ambient-blob"></div>
+              <div className="absolute bottom-[-10%] left-[20%] w-[60vw] h-[60vw] bg-[#0080ff] ambient-blob"></div>
+              <div className="absolute top-[10%] right-[20%] w-[30vw] h-[30vw] bg-[#00ff80] ambient-blob"></div>
+            </>
+          )}
         </div>
 
         {/* Overlay when sidebar is open */}
@@ -1109,7 +1151,7 @@ export default function App() {
           <div 
             className={`absolute inset-0 pointer-events-none transition-opacity duration-500 ease-in-out ${
               isScrolled && activeChat.messages.length > 0 ? 'opacity-100' : 'opacity-0'
-            } bg-gradient-to-b ${theme === 'dark' ? 'from-[#050505] via-[#050505]/80 to-transparent' : 'from-[#f8f9fa] via-[#f8f9fa]/80 to-transparent'}`}
+            } backdrop-blur-md [mask-image:linear-gradient(to_bottom,black_30%,transparent)]`}
           />
           
           <div className="relative z-10 flex items-center gap-4 w-1/3 pointer-events-auto">
@@ -1118,13 +1160,13 @@ export default function App() {
               whileTap={{ scale: 1.1 }}
               style={{ willChange: "transform" }}
               onClick={() => setIsSidebarOpen(true)}
-              className={`w-11 h-11 flex items-center justify-center rounded-full shadow-md border transition-colors backdrop-blur-xl ${
+              className={`w-11 h-11 flex items-center justify-center rounded-full border transition-colors backdrop-blur-xl ${
                 theme === 'dark' 
-                  ? 'bg-white/[0.08] border-white/10 text-white shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' 
-                  : 'bg-white/30 border-white/40 text-black shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'
+                  ? 'bg-black/40 border-white/10 text-white shadow-[0_0_15px_rgba(0,0,0,0.1)]' 
+                  : 'bg-white/30 border-white/40 text-black shadow-[0_0_15px_rgba(0,0,0,0.12)]'
               }`}
             >
-              <Plus className="w-5 h-5" />
+              <PanelLeft className="w-5 h-5" />
             </motion.button>
           </div>
 
@@ -1133,10 +1175,10 @@ export default function App() {
               whileHover={{ scale: 1.15 }}
               whileTap={{ scale: 1.1 }}
               style={{ willChange: "transform" }}
-              className={`w-16 h-11 flex items-center justify-center rounded-full shadow-md border transition-colors backdrop-blur-xl ${
+              className={`w-16 h-11 flex items-center justify-center rounded-full border transition-colors backdrop-blur-xl ${
                 theme === 'dark' 
-                  ? 'bg-white/[0.08] border-white/10 text-white shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' 
-                  : 'bg-white/30 border-white/40 text-black shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'
+                  ? 'bg-black/40 border-white/10 text-white shadow-[0_0_15px_rgba(0,0,0,0.1)]' 
+                  : 'bg-white/30 border-white/40 text-black shadow-[0_0_15px_rgba(0,0,0,0.12)]'
               }`}
             >
             </motion.div>
@@ -1159,10 +1201,10 @@ export default function App() {
                     scale: { type: "spring", stiffness: 500, damping: 30 }
                   }}
                   style={{ transformOrigin: 'right center', willChange: "transform" }}
-                  className={`absolute right-0 flex items-center h-11 rounded-full shadow-md border transition-colors overflow-hidden backdrop-blur-xl ${
+                  className={`absolute right-0 flex items-center h-11 rounded-full border transition-colors overflow-hidden backdrop-blur-xl ${
                     theme === 'dark' 
-                      ? 'bg-white/[0.08] border-white/10 text-white shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' 
-                      : 'bg-white/30 border-white/40 text-black shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'
+                      ? 'bg-black/40 border-white/10 text-white shadow-[0_0_15px_rgba(0,0,0,0.1)]' 
+                      : 'bg-white/30 border-white/40 text-black shadow-[0_0_15px_rgba(0,0,0,0.12)]'
                   }`}
                 >
                   <button 
@@ -1205,6 +1247,7 @@ export default function App() {
                     id={msg.id}
                     role={msg.role} 
                     content={msg.content} 
+                    images={msg.images}
                     theme={theme} 
                     isTyping={msg.isTyping} 
                     accentColor={accentColor}
@@ -1224,11 +1267,11 @@ export default function App() {
                     initial={{ opacity: 0, y: 20, scale: 0.98 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 20, scale: 0.98 }}
-                    style={{ willChange: "transform, opacity" }}
+                    style={{ transformOrigin: 'center' }}
                     className="flex justify-start mb-10"
                   >
                     <div className="relative w-fit">
-                      <div className={`relative z-10 px-6 py-4 rounded-[2rem] backdrop-blur-[20px] border flex items-center gap-1.5 ${theme === 'dark' ? 'bg-white/[0.08] border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' : 'bg-white/30 border-white/40 shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'}`}>
+                      <div className={`relative z-10 px-6 py-4 rounded-[2rem] backdrop-blur-xl backdrop-saturate-150 border flex items-center gap-1.5 ${theme === 'dark' ? 'bg-black/40 border-white/20 shadow-[0_0_15px_rgba(0,0,0,0.1)]' : 'bg-white/60 border-white/40 shadow-[0_0_15px_rgba(0,0,0,0.12)]'}`}>
                         <div className={`w-1.5 h-1.5 rounded-full ${getAccentClass('bg')} typing-dot`} style={{ animationDelay: '0s' }} />
                         <div className={`w-1.5 h-1.5 rounded-full ${getAccentClass('bg')} typing-dot`} style={{ animationDelay: '0.2s' }} />
                         <div className={`w-1.5 h-1.5 rounded-full ${getAccentClass('bg')} typing-dot`} style={{ animationDelay: '0.4s' }} />
@@ -1246,7 +1289,7 @@ export default function App() {
         <div 
           className={`absolute bottom-0 left-0 right-0 h-40 z-10 pointer-events-none transition-opacity duration-500 ease-in-out ${
             !isAtBottom && activeChat.messages.length > 0 ? 'opacity-100' : 'opacity-0'
-          } bg-gradient-to-t ${theme === 'dark' ? 'from-[#050505] via-[#050505]/80 to-transparent' : 'from-[#f8f9fa] via-[#f8f9fa]/80 to-transparent'}`}
+          } backdrop-blur-md [mask-image:linear-gradient(to_top,black_30%,transparent)]`}
         />
 
         {/* Input Area */}
@@ -1254,22 +1297,22 @@ export default function App() {
           {/* Scroll to Bottom Button */}
           <div className="relative max-w-3xl mx-auto w-full mb-4 flex justify-center">
             <AnimatePresence>
-              {showScrollToBottom && (
+              {showScrollToBottom && activeChat.messages.length > 0 && (
                 <motion.button
                   initial={{ opacity: 0, y: 10, scale: 0.9 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 10, scale: 0.9 }}
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
+                  whileHover={{ scale: 1.15 }}
+                  whileTap={{ scale: 1.1 }}
                   transition={{ type: "spring", stiffness: 400, damping: 25 }}
                   onClick={() => {
                     isUserScrolling.current = false;
                     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
                   }}
-                  className={`p-1.5 rounded-full shadow-lg border transition-colors pointer-events-auto ${
+                  className={`p-1.5 rounded-full border transition-colors pointer-events-auto backdrop-blur-xl backdrop-saturate-150 ${
                     theme === 'dark' 
-                      ? 'bg-[#1a1a1a] border-white/10 text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]' 
-                      : 'bg-white border-gray-200/50 text-black shadow-[0_4px_15px_rgba(0,0,0,0.05)]'
+                      ? 'bg-black/40 border-white/20 text-white shadow-[0_0_15px_rgba(0,0,0,0.1)]' 
+                      : 'bg-white/60 border-white/40 text-black shadow-[0_0_15px_rgba(0,0,0,0.12)]'
                   }`}
                 >
                   <ArrowDown className="w-4 h-4" />
@@ -1316,10 +1359,10 @@ export default function App() {
                         }}
                         style={{ willChange: "transform" }}
                         onClick={() => setIsActionMenuOpen(true)}
-                        className={`w-full h-full flex items-center justify-center rounded-full shadow-md border transition-colors cursor-pointer backdrop-blur-xl ${
+                        className={`w-full h-full flex items-center justify-center rounded-full border transition-colors cursor-pointer backdrop-blur-xl ${
                           theme === 'dark' 
-                            ? 'bg-white/[0.08] border-white/10 text-white shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' 
-                            : 'bg-white/30 border-white/40 text-black shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'
+                            ? 'bg-black/40 border-white/10 text-white shadow-[0_0_15px_rgba(0,0,0,0.1)]' 
+                            : (backgroundImage ? 'bg-white/60 border-black/10 text-black shadow-[0_0_15px_rgba(0,0,0,0.12)]' : 'bg-white/30 border-white/40 text-black shadow-[0_0_15px_rgba(0,0,0,0.12)]')
                         }`}
                       >
                         <Plus className="w-6 h-6" />
@@ -1343,7 +1386,7 @@ export default function App() {
                       }}
                       exit={{ scale: 0, opacity: 0, z: 0, transition: { duration: 0.15, ease: "easeOut" } }}
                       style={{ transformOrigin: '24px calc(100% - 24px)', willChange: "transform, opacity" }}
-                      className={`absolute bottom-0 left-0 z-[200] w-64 rounded-[2rem] overflow-hidden p-2 backdrop-blur-xl backdrop-saturate-150 border ${theme === 'dark' ? 'bg-white/[0.08] border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' : 'bg-white/30 border-white/40 shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'}`}
+                      className={`absolute bottom-0 left-0 z-[200] w-64 rounded-[2rem] overflow-hidden p-2 backdrop-blur-xl backdrop-saturate-150 border ${theme === 'dark' ? 'bg-black/40 border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.1)]' : 'bg-white/30 border-white/40 shadow-[0_0_15px_rgba(0,0,0,0.12)]'}`}
                     >
                       <div className="flex flex-col">
                         <motion.button
@@ -1358,7 +1401,7 @@ export default function App() {
                           className={`w-full flex items-center justify-between px-4 py-3 rounded-full text-sm font-medium transition-colors ${
                             theme === 'dark' 
                               ? 'hover:bg-white/10 active:bg-white/20 text-white' 
-                              : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
+                              : 'hover:bg-black/5 active:bg-black/10 text-black'
                           }`}
                         >
                           <div className="flex items-center gap-3">
@@ -1379,12 +1422,12 @@ export default function App() {
                           className={`w-full flex items-center justify-between px-4 py-3 rounded-full text-sm font-medium transition-colors ${
                             theme === 'dark' 
                               ? 'hover:bg-white/10 active:bg-white/20 text-white' 
-                              : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
+                              : 'hover:bg-black/5 active:bg-black/10 text-black'
                           }`}
                         >
                           <div className="flex items-center gap-3">
                             <Lightbulb className={`w-4 h-4 ${isThinkingMode ? getAccentClass('text') : ''}`} />
-                            <span className={isThinkingMode ? getAccentClass('text') : ''}>Размышления</span>
+                            <span className={isThinkingMode ? getAccentClass('text') : ''}>Размышление</span>
                           </div>
                           {isThinkingMode && <Check className={`w-4 h-4 ${getAccentClass('text')}`} />}
                         </motion.button>
@@ -1398,15 +1441,15 @@ export default function App() {
                           className={`w-full flex items-center justify-between px-4 py-3 rounded-full text-sm font-medium transition-colors ${
                             theme === 'dark' 
                               ? 'hover:bg-white/10 active:bg-white/20 text-white' 
-                              : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
+                              : 'hover:bg-black/5 active:bg-black/10 text-black'
                           }`}
                         >
                           <div className="flex items-center gap-3">
                             <FlaskConical className="w-4 h-4" />
                             Модель
                           </div>
-                          <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                            {selectedModel === 'llama-3.3-70b-versatile' ? 'Osmium X' : 'Osmium V'}
+                          <span className={`text-xs ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
+                            {selectedModel === 'moonshotai/kimi-k2-instruct-0905' ? 'Osmium XL' : 'Osmium V'}
                           </span>
                         </motion.button>
 
@@ -1424,10 +1467,10 @@ export default function App() {
                       }}
                       exit={{ scale: 0, opacity: 0, z: 0, transition: { duration: 0.15, ease: "easeOut" } }}
                       style={{ transformOrigin: '24px calc(100% - 24px)', willChange: "transform, opacity" }}
-                      className={`absolute bottom-0 left-0 z-[200] w-64 rounded-[2rem] overflow-hidden shadow-[0_16px_40px_rgba(0,0,0,0.2)] border p-2 backdrop-blur-xl ${
+                      className={`absolute bottom-0 left-0 z-[200] w-64 rounded-[2rem] overflow-hidden border p-2 backdrop-blur-xl ${
                         theme === 'dark' 
-                          ? 'bg-white/10 border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]' 
-                          : 'bg-white/30 border-white/40 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]'
+                          ? 'bg-black/40 border-white/20 shadow-[0_0_15px_rgba(0,0,0,0.1)]' 
+                          : 'bg-white/30 border-white/40 shadow-[0_0_15px_rgba(0,0,0,0.12)]'
                       }`}
                     >
                       <div className="flex flex-col">
@@ -1436,12 +1479,12 @@ export default function App() {
                             whileTap={{ scale: 0.95 }}
                             onClick={() => setActionMenuView('main')}
                             className={`p-2 rounded-full transition-colors ${
-                              theme === 'dark' ? 'hover:bg-white/10 text-gray-400' : 'hover:bg-black/5 text-gray-500'
+                              theme === 'dark' ? 'hover:bg-white/10 text-white' : 'hover:bg-black/5 text-black'
                             }`}
                           >
                             <ChevronLeft className="w-5 h-5" />
                           </motion.button>
-                          <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                          <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
                             Выберите модель
                           </span>
                         </div>
@@ -1455,12 +1498,12 @@ export default function App() {
                           className={`flex items-center justify-between px-4 py-2.5 rounded-full text-sm font-medium transition-colors ${
                             theme === 'dark' 
                               ? 'hover:bg-white/10 active:bg-white/20 text-white' 
-                              : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
+                              : 'hover:bg-black/5 active:bg-black/10 text-black'
                           }`}
                         >
                           <div className="flex flex-col items-start">
                             <span>Osmium V</span>
-                            <span className={`text-[11px] ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>Быстрый ответ</span>
+                            <span className={`text-[11px] ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Быстрый ответ</span>
                           </div>
                           {selectedModel === 'meta-llama/llama-4-scout-17b-16e-instruct' && <Check className="w-4 h-4" />}
                         </motion.button>
@@ -1469,18 +1512,18 @@ export default function App() {
                           onTapStart={() => setIsActionMenuInteracting(true)}
                           onTap={() => setIsActionMenuInteracting(false)}
                           onTapCancel={() => setIsActionMenuInteracting(false)}
-                          onClick={() => { setSelectedModel('llama-3.3-70b-versatile'); setActionMenuView('main'); }}
+                          onClick={() => { setSelectedModel('moonshotai/kimi-k2-instruct-0905'); setActionMenuView('main'); }}
                           className={`flex items-center justify-between px-4 py-2.5 rounded-full text-sm font-medium transition-colors ${
                             theme === 'dark' 
                               ? 'hover:bg-white/10 active:bg-white/20 text-white' 
-                              : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
+                              : 'hover:bg-black/5 active:bg-black/10 text-black'
                           }`}
                         >
                           <div className="flex flex-col items-start">
-                            <span>Osmium X</span>
-                            <span className={`text-[11px] ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>Подробный ответ</span>
+                            <span>Osmium XL</span>
+                            <span className={`text-[11px] ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Подробный ответ</span>
                           </div>
-                          {selectedModel === 'llama-3.3-70b-versatile' && <Check className="w-4 h-4" />}
+                          {selectedModel === 'moonshotai/kimi-k2-instruct-0905' && <Check className="w-4 h-4" />}
                         </motion.button>
                       </div>
                     </motion.div>
@@ -1491,7 +1534,7 @@ export default function App() {
 
             <div className="relative group flex-1">
               {/* Soft diffuse shadow for floating effect */}
-              <div className={`absolute inset-0 rounded-[2rem] shadow-[0_15px_50px_rgba(0,0,0,0.2)] ${theme === 'dark' ? 'shadow-[0_15px_50px_rgba(0,0,0,0.6)]' : ''} pointer-events-none`}></div>
+              <div className={`absolute inset-0 rounded-[2rem] shadow-[0_0_15px_rgba(0,0,0,0.12)] ${theme === 'dark' ? 'shadow-[0_0_15px_rgba(0,0,0,0.1)]' : ''} pointer-events-none`}></div>
             
               {/* Pastel rainbow glow (bloom) */}
               {isGlowEnabled && (
@@ -1503,38 +1546,34 @@ export default function App() {
               )}
 
               {/* Input Bar Container */}
-              <div className={`relative z-10 flex flex-col rounded-[2rem] p-1.5 backdrop-blur-xl backdrop-saturate-150 border ${theme === 'dark' ? 'bg-white/[0.08] border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' : 'bg-white/30 border-white/40 shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'}`}>
+              <div className={`relative z-10 flex flex-col rounded-[2rem] p-1.5 backdrop-blur-xl backdrop-saturate-150 border ${backgroundImage ? (theme === 'dark' ? 'bg-black/40 border-white/20 shadow-[0_0_15px_rgba(0,0,0,0.15)]' : 'bg-white/60 border-black/10 shadow-[0_0_15px_rgba(0,0,0,0.12)]') : (theme === 'dark' ? 'bg-black/40 border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.1)]' : 'bg-white/30 border-white/40 shadow-[0_0_15px_rgba(0,0,0,0.12)]')}`}>
                 
                 {/* Top section: Pills and Image Preview */}
                 <AnimatePresence initial={false}>
                   {isThinkingMode && (
                     <motion.div 
                       key="pills-container"
-                      initial={{ opacity: 0, scaleY: 0.95 }}
-                      animate={{ opacity: 1, scaleY: 1 }}
-                      exit={{ opacity: 0, scaleY: 0.95 }}
-                      transition={{ duration: 0.2 }}
-                      style={{ transformOrigin: 'top', willChange: 'transform, opacity' }}
-                      className="overflow-hidden"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.2, ease: 'easeInOut' }}
+                      style={{ overflow: 'hidden', willChange: 'height, opacity' }}
                     >
                       <div className="flex flex-wrap items-center gap-2 px-3 pt-2 pb-1.5 pointer-events-auto">
-                        <AnimatePresence>
-                          {isThinkingMode && (
-                            <motion.div 
-                              key="thinking-mode"
-                              initial={{ scale: 0.8, opacity: 0 }}
-                              animate={{ scale: 1, opacity: 1 }}
-                              exit={{ scale: 0.8, opacity: 0 }}
-                              className={`flex items-center gap-1.5 shadow-sm rounded-full px-3 py-1.5 border ${theme === 'dark' ? 'bg-[#2a2a2a] border-white/10' : 'bg-white border-gray-100'}`}
-                            >
-                              <Lightbulb className={`w-3.5 h-3.5 ${getAccentClass('text')}`} />
-                              <span className={`text-[13px] font-medium ${getAccentClass('text')}`}>Размышления</span>
-                              <button onClick={() => setIsThinkingMode(false)} className={`ml-1 ${getAccentClass('text')} hover:opacity-70 transition-opacity`}>
-                                <X className="w-3.5 h-3.5" />
-                              </button>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
+                        <motion.div 
+                          key="thinking-mode"
+                          initial={{ scale: 0.8, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0.8, opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className={`flex items-center gap-1.5 shadow-sm rounded-full px-3 py-1.5 border ${theme === 'dark' ? 'bg-[#2a2a2a] border-white/10' : 'bg-white border-gray-100'}`}
+                        >
+                          <Lightbulb className={`w-3.5 h-3.5 ${getAccentClass('text')}`} />
+                          <span className={`text-[13px] font-medium ${getAccentClass('text')}`}>Размышление</span>
+                          <button onClick={() => setIsThinkingMode(false)} className={`ml-1 ${getAccentClass('text')} hover:opacity-70 transition-opacity`}>
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </motion.div>
                       </div>
                     </motion.div>
                   )}
@@ -1545,6 +1584,7 @@ export default function App() {
                     type="file" 
                     ref={fileInputRef} 
                     className="hidden" 
+                    accept="image/*"
                     multiple 
                     onChange={(e) => {
                       if (e.target.files) {
@@ -1557,10 +1597,10 @@ export default function App() {
                     {selectedFiles.length > 0 && (
                       <div className="flex flex-wrap gap-2 px-4 pb-2 pt-1">
                         {selectedFiles.map((file, idx) => (
-                          <div key={idx} className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium ${theme === 'dark' ? 'bg-white/10 text-white' : 'bg-black/5 text-gray-900'}`}>
-                            <span className="truncate max-w-[120px]">{file.name}</span>
-                            <button onClick={() => setSelectedFiles(prev => prev.filter((_, i) => i !== idx))} className="hover:opacity-70 transition-opacity">
-                              <X className="w-3.5 h-3.5" />
+                          <div key={idx} className={`relative flex items-center justify-center w-12 h-12 rounded-xl overflow-hidden border ${theme === 'dark' ? 'border-white/20' : 'border-black/10'}`}>
+                            <img src={URL.createObjectURL(file)} alt={file.name} className="w-full h-full object-cover" />
+                            <button onClick={() => setSelectedFiles(prev => prev.filter((_, i) => i !== idx))} className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-0.5 hover:bg-black/70 transition-colors">
+                              <X className="w-3 h-3" />
                             </button>
                           </div>
                         ))}
@@ -1569,13 +1609,7 @@ export default function App() {
                     <textarea
                     ref={textareaRef}
                   value={input}
-                  onChange={(e) => {
-                    setInput(e.target.value);
-                    if (textareaRef.current) {
-                      textareaRef.current.style.height = 'auto';
-                      textareaRef.current.style.height = `${Math.max(36, Math.min(textareaRef.current.scrollHeight, 128))}px`;
-                    }
-                  }}
+                  onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
@@ -1587,7 +1621,7 @@ export default function App() {
                     }
                   }}
                   placeholder="Ваш вопрос..."
-                  className={`flex-1 bg-transparent ${theme === 'dark' ? 'text-white' : 'text-gray-900'} placeholder-gray-500 resize-none max-h-32 h-[36px] min-h-[36px] py-[8px] px-4 focus:outline-none text-[16px] font-medium font-sans leading-tight`}
+                  className={`w-full bg-transparent ${theme === 'dark' ? 'text-white placeholder-white/60' : 'text-black placeholder-black/60'} resize-none min-h-[36px] overflow-y-auto py-[8px] px-4 focus:outline-none text-[16px] font-medium font-sans leading-tight`}
                   rows={1}
                 />
                 </div>
@@ -1598,7 +1632,7 @@ export default function App() {
                   disabled={(!isGenerating && !input.trim() && selectedFiles.length === 0) || (isLoading && !isGenerating)}
                   className={`w-[36px] h-[36px] flex items-center justify-center rounded-full transition-all duration-300 flex-shrink-0 shadow-sm ${
                     (!isGenerating && !input.trim() && selectedFiles.length === 0)
-                      ? (theme === 'dark' ? 'bg-white/5 text-gray-500' : 'bg-gray-100 text-gray-400')
+                      ? (theme === 'dark' ? 'bg-white/10 text-white/20' : 'bg-black/5 text-black/20')
                       : `${getAccentClass('bg')} ${getAccentClass('hover')} text-white ${getAccentClass('shadow')}`
                   } ${(isLoading && !isGenerating) ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
@@ -1608,7 +1642,7 @@ export default function App() {
               </div>
             </div>
           </div>
-          <p className={`text-center text-[11px] ${theme === 'dark' ? 'text-gray-500 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]' : 'text-gray-400 drop-shadow-[0_1px_2px_rgba(255,255,255,0.8)]'} mt-4 font-medium hidden sm:block pointer-events-auto`}>
+          <p className={`text-center text-[11px] ${theme === 'dark' ? 'text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]' : 'text-black drop-shadow-[0_1px_2px_rgba(255,255,255,0.8)]'} mt-4 font-medium hidden sm:block pointer-events-auto`}>
             SalarisAI может ошибаться. Перепроверяйте информацию.
           </p>
         </footer>
@@ -1632,14 +1666,14 @@ export default function App() {
               exit={{ opacity: 0, scale: 0.9 }}
               transition={{ type: "spring", damping: 25, stiffness: 500, mass: 0.8 }}
               style={{ willChange: "transform, opacity" }}
-              className={`relative w-full max-w-[300px] rounded-[2rem] overflow-hidden shadow-[0_16px_40px_rgba(0,0,0,0.2)] border ${
+              className={`relative w-full max-w-[300px] rounded-[2rem] overflow-hidden border ${
                 theme === 'dark' 
-                  ? 'bg-white/10 border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]' 
-                  : 'bg-white/30 border-white/40 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]'
+                  ? 'bg-black/40 border-white/20 shadow-[0_0_15px_rgba(0,0,0,0.1)]' 
+                  : 'bg-white/30 border-white/40 shadow-[0_0_15px_rgba(0,0,0,0.12)]'
               } backdrop-blur-xl`}
             >
               <div className="p-6">
-                <h3 className={`text-lg font-semibold mb-4 text-left ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                <h3 className={`text-lg font-semibold mb-4 text-left ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
                   Переименовать чат
                 </h3>
                 <div className="relative group">
@@ -1655,8 +1689,8 @@ export default function App() {
                     placeholder="Название"
                     className={`appearance-none border border-transparent shadow-none w-full py-3 px-5 text-base transition-all duration-300 focus:outline-none focus:ring-0 rounded-full ${
                       theme === 'dark' 
-                        ? 'bg-white/10 text-white placeholder-white/40 focus:bg-white/20' 
-                        : 'bg-gray-300 text-gray-900 placeholder-gray-500 focus:bg-gray-400'
+                        ? 'bg-black/40 text-white placeholder-white/40 focus:bg-white/20' 
+                        : 'bg-gray-300 text-black placeholder-black/60 focus:bg-gray-400'
                     }`}
                   />
                 </div>
@@ -1667,8 +1701,8 @@ export default function App() {
                   onClick={() => setEditingChatId(null)}
                   className={`appearance-none border border-transparent shadow-none flex-1 py-3 text-sm font-medium transition-colors rounded-full ${
                     theme === 'dark' 
-                      ? 'bg-white/10 text-white hover:bg-white/20 active:bg-white/30' 
-                      : 'bg-gray-300 text-gray-900 hover:bg-gray-400 active:bg-gray-500'
+                      ? 'bg-black/40 text-white hover:bg-white/20 active:bg-white/30' 
+                      : 'bg-gray-300 text-black hover:bg-gray-400 active:bg-gray-500'
                   }`}
                 >
                   Отмена
@@ -1702,17 +1736,17 @@ export default function App() {
               exit={{ opacity: 0, scale: 0.9 }}
               transition={{ type: "spring", damping: 25, stiffness: 500, mass: 0.8 }}
               style={{ willChange: "transform, opacity" }}
-              className={`relative w-full max-w-[300px] rounded-[2rem] overflow-hidden shadow-[0_16px_40px_rgba(0,0,0,0.2)] border ${
+              className={`relative w-full max-w-[300px] rounded-[2rem] overflow-hidden border ${
                 theme === 'dark' 
-                  ? 'bg-white/10 border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]' 
-                  : 'bg-white/30 border-white/40 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]'
+                  ? 'bg-black/40 border-white/20 shadow-[0_0_15px_rgba(0,0,0,0.1)]' 
+                  : 'bg-white/30 border-white/40 shadow-[0_0_15px_rgba(0,0,0,0.12)]'
               } backdrop-blur-xl`}
             >
               <div className="p-6">
                 <h3 className={`text-lg font-semibold mb-2 text-left ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
                   Удалить все чаты?
                 </h3>
-                <p className={`text-sm text-left leading-relaxed ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                <p className={`text-sm text-left leading-relaxed ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
                   Данное действие приведет к удалению всех ваших чатов. После удаления чаты не получится восстановить.
                 </p>
               </div>
@@ -1722,8 +1756,8 @@ export default function App() {
                   onClick={() => setIsDeleteConfirmOpen(false)}
                   className={`appearance-none border border-transparent shadow-none flex-1 py-3 text-sm font-medium transition-colors rounded-full ${
                     theme === 'dark' 
-                      ? 'bg-white/10 text-white hover:bg-white/20 active:bg-white/30' 
-                      : 'bg-gray-300 text-gray-900 hover:bg-gray-400 active:bg-gray-500'
+                      ? 'bg-black/40 text-white hover:bg-white/20 active:bg-white/30' 
+                      : 'bg-gray-300 text-black hover:bg-gray-400 active:bg-gray-500'
                   }`}
                 >
                   Отмена
@@ -1772,12 +1806,12 @@ export default function App() {
                 transformOrigin: 'calc(100% - 44px) 22px', 
                 willChange: "transform, opacity"
               }}
-              className={`fixed top-4 right-4 md:right-8 z-[201] w-72 rounded-[2rem] overflow-hidden p-4 backdrop-blur-xl backdrop-saturate-150 border ${theme === 'dark' ? 'bg-white/[0.08] border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' : 'bg-white/30 border-white/40 shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'}`}
+              className={`fixed top-4 right-4 md:right-8 z-[201] w-72 rounded-[2rem] overflow-hidden p-4 backdrop-blur-xl backdrop-saturate-150 border ${theme === 'dark' ? 'bg-black/40 border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.1)]' : 'bg-white/30 border-white/40 shadow-[0_0_15px_rgba(0,0,0,0.12)]'}`}
             >
               <div className="flex flex-col">
                 {user && (
                   <div className="flex items-center gap-4 mb-4 px-2">
-                    <div className={`w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold text-white shadow-lg flex-shrink-0 ${getAvatarColor(profile?.display_name || user?.email || 'U')}`}>
+                    <div className={`w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold text-white shadow-[0_0_15px_rgba(0,0,0,0.1)] flex-shrink-0 ${getAvatarColor(profile?.display_name || user?.email || 'U')}`}>
                       {profile?.avatar_url ? (
                         <img 
                           src={profile.avatar_url} 
@@ -1795,10 +1829,10 @@ export default function App() {
                       )}
                     </div>
                     <div className="flex flex-col overflow-hidden">
-                      <span className={`text-base font-bold truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                      <span className={`text-base font-bold truncate ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
                         {profile?.display_name || 'Пользователь'}
                       </span>
-                      <span className={`text-xs truncate ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>
+                      <span className={`text-xs truncate ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
                         {user?.email}
                       </span>
                     </div>
@@ -1818,7 +1852,7 @@ export default function App() {
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-full text-sm font-medium transition-colors ${
                       theme === 'dark' 
                         ? 'hover:bg-white/10 active:bg-white/20 text-white' 
-                        : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
+                        : 'hover:bg-black/5 active:bg-black/10 text-black'
                     }`}
                   >
                     <User className="w-4 h-4" />
@@ -1837,7 +1871,7 @@ export default function App() {
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-full text-sm font-medium transition-colors ${
                     theme === 'dark' 
                       ? 'hover:bg-white/10 active:bg-white/20 text-white' 
-                      : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
+                      : 'hover:bg-black/5 active:bg-black/10 text-black'
                   }`}
                 >
                   <Paintbrush className="w-4 h-4" />
@@ -1853,7 +1887,7 @@ export default function App() {
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-full text-sm font-medium transition-colors ${
                     theme === 'dark' 
                       ? 'hover:bg-white/10 active:bg-white/20 text-white' 
-                      : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
+                      : 'hover:bg-black/5 active:bg-black/10 text-black'
                   }`}
                 >
                   <Info className="w-4 h-4" />
@@ -1876,7 +1910,7 @@ export default function App() {
                 transformOrigin: 'calc(100% - 44px) 22px', 
                 willChange: "transform, opacity"
               }}
-              className={`fixed top-4 right-4 md:right-8 z-[201] w-72 rounded-[2rem] overflow-hidden p-4 backdrop-blur-xl backdrop-saturate-150 border ${theme === 'dark' ? 'bg-white/[0.08] border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' : 'bg-white/30 border-white/40 shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'}`}
+              className={`fixed top-4 right-4 md:right-8 z-[201] w-72 rounded-[2rem] overflow-hidden p-4 backdrop-blur-xl backdrop-saturate-150 border ${theme === 'dark' ? 'bg-black/40 border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.1)]' : 'bg-white/30 border-white/40 shadow-[0_0_15px_rgba(0,0,0,0.12)]'}`}
             >
               <div className="flex flex-col">
                 <div className="flex items-center gap-2 mb-4 px-2">
@@ -1887,19 +1921,19 @@ export default function App() {
                     onTapCancel={() => setIsSettingsInteracting(false)}
                     onClick={() => setSettingsView('main')}
                     className={`p-2 rounded-full transition-colors ${
-                      theme === 'dark' ? 'hover:bg-white/10 text-gray-400' : 'hover:bg-black/5 text-gray-500'
+                      theme === 'dark' ? 'hover:bg-white/10 text-white' : 'hover:bg-black/5 text-black'
                     }`}
                   >
                     <ChevronLeft className="w-5 h-5" />
                   </motion.button>
-                  <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                  <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
                     Редактировать профиль
                   </span>
                 </div>
 
                 <div className="flex flex-col gap-4 px-2 mb-4">
                   <div className="flex flex-col items-center gap-3">
-                    <div className={`w-20 h-20 rounded-full flex items-center justify-center text-3xl font-bold text-white shadow-lg ${getAvatarColor(profile?.display_name || user?.email || 'U')}`}>
+                    <div className={`w-20 h-20 rounded-full flex items-center justify-center text-3xl font-bold text-white shadow-[0_0_15px_rgba(0,0,0,0.1)] ${getAvatarColor(profile?.display_name || user?.email || 'U')}`}>
                       {profile?.avatar_url ? (
                         <img 
                           src={profile.avatar_url} 
@@ -1932,7 +1966,7 @@ export default function App() {
                         className={`w-full flex items-center justify-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
                           theme === 'dark' 
                             ? 'bg-white/5 hover:bg-white/10 text-white' 
-                            : 'bg-black/5 hover:bg-black/10 text-gray-900'
+                            : 'bg-black/5 hover:bg-black/10 text-black'
                         }`}
                       >
                         <Camera className="w-4 h-4" />
@@ -1942,7 +1976,7 @@ export default function App() {
                   </div>
 
                   <div>
-                    <label className={`text-xs font-medium mb-1 block ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>
+                    <label className={`text-xs font-medium mb-1 block ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
                       Имя пользователя
                     </label>
                     <input 
@@ -1951,8 +1985,8 @@ export default function App() {
                       onChange={(e) => setTempName(e.target.value)}
                       className={`appearance-none border border-transparent shadow-none w-full h-10 px-4 text-sm transition-all duration-300 focus:outline-none focus:ring-0 rounded-full ${
                         theme === 'dark' 
-                          ? 'bg-white/10 text-white placeholder-white/40 focus:bg-white/20' 
-                          : 'bg-gray-300 text-gray-900 placeholder-gray-500 focus:bg-gray-400'
+                          ? 'bg-black/40 text-white placeholder-white/40 focus:bg-white/20' 
+                          : 'bg-gray-300 text-black placeholder-black/60 focus:bg-gray-400'
                       }`}
                     />
                   </div>
@@ -2013,7 +2047,7 @@ export default function App() {
                 transformOrigin: 'calc(100% - 44px) 22px', 
                 willChange: "transform, opacity"
               }}
-              className={`fixed top-4 right-4 md:right-8 z-[201] w-72 rounded-[2rem] overflow-hidden p-4 backdrop-blur-xl backdrop-saturate-150 border ${theme === 'dark' ? 'bg-white/[0.08] border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' : 'bg-white/30 border-white/40 shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'}`}
+              className={`fixed top-4 right-4 md:right-8 z-[201] w-72 rounded-[2rem] overflow-hidden p-4 backdrop-blur-xl backdrop-saturate-150 border ${theme === 'dark' ? 'bg-black/40 border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.1)]' : 'bg-white/30 border-white/40 shadow-[0_0_15px_rgba(0,0,0,0.12)]'}`}
             >
               <div className="flex flex-col">
                 <div className="flex items-center gap-2 mb-4 px-2">
@@ -2024,12 +2058,12 @@ export default function App() {
                     onTapCancel={() => setIsSettingsInteracting(false)}
                     onClick={() => setSettingsView('main')}
                     className={`p-2 rounded-full transition-colors ${
-                      theme === 'dark' ? 'hover:bg-white/10 text-gray-400' : 'hover:bg-black/5 text-gray-500'
+                      theme === 'dark' ? 'hover:bg-white/10 text-white' : 'hover:bg-black/5 text-black'
                     }`}
                   >
                     <ChevronLeft className="w-5 h-5" />
                   </motion.button>
-                  <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                  <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
                     Кастомизация
                   </span>
                 </div>
@@ -2046,12 +2080,28 @@ export default function App() {
                       theme === 'dark' ? 'hover:bg-white/5 active:bg-white/10' : 'hover:bg-black/5 active:bg-black/10'
                     }`}
                   >
-                    <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                    <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
                       Выбрать цвет
                     </span>
                     <div className="h-6 flex items-center justify-center">
                       <div className={`w-5 h-5 rounded-full ${getAccentClass('bg')} shadow-sm`} />
                     </div>
+                  </motion.button>
+
+                  {/* Wallpapers */}
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onTapStart={() => setIsSettingsInteracting(true)}
+                    onTap={() => setIsSettingsInteracting(false)}
+                    onTapCancel={() => setIsSettingsInteracting(false)}
+                    onClick={() => setSettingsView('wallpaper')}
+                    className={`w-full rounded-full px-4 py-3 flex items-center justify-between transition-colors cursor-pointer ${
+                      theme === 'dark' ? 'hover:bg-white/5 active:bg-white/10' : 'hover:bg-black/5 active:bg-black/10'
+                    }`}
+                  >
+                    <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
+                      Обои
+                    </span>
                   </motion.button>
 
                   {/* Auto Theme Toggle */}
@@ -2065,7 +2115,7 @@ export default function App() {
                       theme === 'dark' ? 'hover:bg-white/5 active:bg-white/10' : 'hover:bg-black/5 active:bg-black/10'
                     }`}
                   >
-                    <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                    <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
                       Системная тема
                     </span>
                     <div
@@ -2106,7 +2156,7 @@ export default function App() {
                             theme === 'dark' ? 'hover:bg-white/5 active:bg-white/10' : 'hover:bg-black/5 active:bg-black/10'
                           }`}
                         >
-                          <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                          <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
                             Темная тема
                           </span>
                           <div
@@ -2141,7 +2191,7 @@ export default function App() {
                       theme === 'dark' ? 'hover:bg-white/5 active:bg-white/10' : 'hover:bg-black/5 active:bg-black/10'
                     }`}
                   >
-                    <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                    <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
                       Эффекты сияния
                     </span>
                     <div
@@ -2179,7 +2229,7 @@ export default function App() {
                 transformOrigin: 'calc(100% - 44px) 22px', 
                 willChange: "transform, opacity"
               }}
-              className={`fixed top-4 right-4 md:right-8 z-[201] w-56 rounded-[2rem] overflow-hidden p-4 backdrop-blur-xl backdrop-saturate-150 border ${theme === 'dark' ? 'bg-white/[0.08] border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' : 'bg-white/30 border-white/40 shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'}`}
+              className={`fixed top-4 right-4 md:right-8 z-[201] w-56 rounded-[2rem] overflow-hidden p-4 backdrop-blur-xl backdrop-saturate-150 border ${theme === 'dark' ? 'bg-black/40 border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.1)]' : 'bg-white/30 border-white/40 shadow-[0_0_15px_rgba(0,0,0,0.12)]'}`}
             >
               <div className="flex flex-col">
                 <div className="flex items-center gap-2 mb-4 px-2">
@@ -2190,12 +2240,12 @@ export default function App() {
                     onTapCancel={() => setIsSettingsInteracting(false)}
                     onClick={() => setSettingsView('customization')}
                     className={`p-2 rounded-full transition-colors ${
-                      theme === 'dark' ? 'hover:bg-white/10 text-gray-400' : 'hover:bg-black/5 text-gray-500'
+                      theme === 'dark' ? 'hover:bg-white/10 text-white' : 'hover:bg-black/5 text-black'
                     }`}
                   >
                     <ChevronLeft className="w-5 h-5" />
                   </motion.button>
-                  <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                  <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
                     Выберите цвет
                   </span>
                 </div>
@@ -2215,6 +2265,32 @@ export default function App() {
                 </div>
               </div>
             </motion.div>
+          ) : settingsView === 'wallpaper' ? (
+            <motion.div 
+              key="wallpaper"
+              initial={{ scale: 0, opacity: 0, z: 0 }}
+              animate={{ 
+                scale: isSettingsInteracting ? 0.95 : 1, 
+                opacity: 1,
+                z: 0,
+                transition: { type: "spring", damping: 25, stiffness: 300 } 
+              }}
+              exit={{ scale: 0, opacity: 0, z: 0, transition: { duration: 0.15, ease: "easeOut" } }}
+              style={{ 
+                transformOrigin: 'calc(100% - 44px) 22px', 
+                willChange: "transform, opacity"
+              }}
+              className={`fixed top-4 right-4 md:right-8 z-[201] w-80 rounded-[2rem] overflow-hidden p-4 backdrop-blur-xl backdrop-saturate-150 border ${theme === 'dark' ? 'bg-black/40 border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.1)]' : 'bg-white/30 border-white/40 shadow-[0_0_15px_rgba(0,0,0,0.12)]'}`}
+            >
+              <WallpaperSettings
+                theme={theme}
+                backgroundImage={backgroundImage}
+                setBackgroundImage={setBackgroundImage}
+                setSettingsView={setSettingsView}
+                setIsSettingsInteracting={setIsSettingsInteracting}
+                getAccentClass={getAccentClass}
+              />
+            </motion.div>
           ) : (
             <motion.div 
               key="about"
@@ -2230,7 +2306,7 @@ export default function App() {
                 transformOrigin: 'calc(100% - 44px) 22px', 
                 willChange: "transform, opacity"
               }}
-              className={`fixed top-4 right-4 md:right-8 z-[201] w-72 rounded-[2rem] overflow-hidden p-4 backdrop-blur-xl backdrop-saturate-150 border ${theme === 'dark' ? 'bg-white/[0.08] border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' : 'bg-white/30 border-white/40 shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'}`}
+              className={`fixed top-4 right-4 md:right-8 z-[201] w-72 rounded-[2rem] overflow-hidden p-4 backdrop-blur-xl backdrop-saturate-150 border ${theme === 'dark' ? 'bg-black/40 border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.1)]' : 'bg-white/30 border-white/40 shadow-[0_0_15px_rgba(0,0,0,0.12)]'}`}
             >
               <div className="flex flex-col">
                 <div className="flex items-center gap-2 mb-4 px-2">
@@ -2241,21 +2317,21 @@ export default function App() {
                     onTapCancel={() => setIsSettingsInteracting(false)}
                     onClick={() => setSettingsView('main')}
                     className={`p-2 rounded-full transition-colors ${
-                      theme === 'dark' ? 'hover:bg-white/10 text-gray-400' : 'hover:bg-black/5 text-gray-500'
+                      theme === 'dark' ? 'hover:bg-white/10 text-white' : 'hover:bg-black/5 text-black'
                     }`}
                   >
                     <ChevronLeft className="w-5 h-5" />
                   </motion.button>
-                  <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                  <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
                     О приложении
                   </span>
                 </div>
                 <div className="px-4 py-3 flex items-center justify-between">
-                  <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                  <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
                     Версия
                   </span>
-                  <span className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>
-                    1.3(а)
+                  <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
+                    1.4
                   </span>
                 </div>
 
@@ -2335,7 +2411,7 @@ export default function App() {
               zIndex: 1001
             }}
             className={`w-48 rounded-[2rem] overflow-hidden p-2 backdrop-blur-xl backdrop-saturate-150 border ${
-              theme === 'dark' ? 'bg-white/[0.12] border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]' : 'bg-white/30 border-white/40 shadow-[0_8px_32px_0_rgba(31,38,135,0.08)]'
+              theme === 'dark' ? 'bg-black/50 border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.1)]' : 'bg-white/30 border-white/40 shadow-[0_0_15px_rgba(0,0,0,0.12)]'
             }`}
           >
             <div className="flex flex-col">
@@ -2351,7 +2427,7 @@ export default function App() {
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-full text-sm font-medium transition-colors ${
                   theme === 'dark' 
                     ? 'hover:bg-white/10 active:bg-white/20 text-white' 
-                    : 'hover:bg-black/5 active:bg-black/10 text-gray-900'
+                    : 'hover:bg-black/5 active:bg-black/10 text-black'
                 }`}
               >
                 <Pencil className="w-4 h-4" />
@@ -2374,6 +2450,109 @@ export default function App() {
               </motion.button>
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showUpdateModal && (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                localStorage.setItem('v1.4_seen', 'true');
+                setShowUpdateModal(false);
+              }}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className={`relative w-full max-w-md overflow-hidden rounded-3xl p-6 shadow-2xl backdrop-blur-2xl backdrop-saturate-150 ${
+                theme === 'dark'
+                  ? 'bg-[#1a1a1a]/80 border border-white/10 text-white'
+                  : 'bg-white/80 border border-black/5 text-black'
+              }`}
+            >
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold mb-2">Обновление: Версия 1.4</h2>
+                <p className={`text-sm ${theme === 'dark' ? 'text-white/70' : 'text-black/60'}`}>
+                  Мы рады представить вам масштабное обновление платформы.
+                </p>
+              </div>
+
+              <div className="space-y-4 mb-8 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
+                <div className="flex gap-4">
+                  <div className={`mt-1 flex-shrink-0 ${getAccentClass('text')}`}><Image className="w-5 h-5" /></div>
+                  <div>
+                    <h3 className="font-semibold text-[15px] mb-1">Пользовательские обои</h3>
+                    <p className={`text-sm leading-relaxed ${theme === 'dark' ? 'text-white/70' : 'text-black/60'}`}>Добавлена возможность установки фоновых изображений (доступно в разделе «Настройки -&gt; Обои»).</p>
+                  </div>
+                </div>
+                <div className="flex gap-4">
+                  <div className={`mt-1 flex-shrink-0 ${getAccentClass('text')}`}><Cpu className="w-5 h-5" /></div>
+                  <div>
+                    <h3 className="font-semibold text-[15px] mb-1">Обновление ИИ-модели</h3>
+                    <p className={`text-sm leading-relaxed ${theme === 'dark' ? 'text-white/70' : 'text-black/60'}`}>Интегрирована улучшенная версия флагманской модели Osmium XL.</p>
+                  </div>
+                </div>
+                <div className="flex gap-4">
+                  <div className={`mt-1 flex-shrink-0 ${getAccentClass('text')}`}><Layout className="w-5 h-5" /></div>
+                  <div>
+                    <h3 className="font-semibold text-[15px] mb-1">Обновление интерфейса</h3>
+                    <p className={`text-sm leading-relaxed ${theme === 'dark' ? 'text-white/70' : 'text-black/60'}`}>Переработан дизайн боковой панели для повышения удобства навигации.</p>
+                  </div>
+                </div>
+                <div className="flex gap-4">
+                  <div className={`mt-1 flex-shrink-0 ${getAccentClass('text')}`}><Droplet className="w-5 h-5" /></div>
+                  <div>
+                    <h3 className="font-semibold text-[15px] mb-1">Улучшенный визуальный стиль</h3>
+                    <p className={`text-sm leading-relaxed ${theme === 'dark' ? 'text-white/70' : 'text-black/60'}`}>Доработан эффект матового стекла, добавлено тонирование для темной темы.</p>
+                  </div>
+                </div>
+                <div className="flex gap-4">
+                  <div className={`mt-1 flex-shrink-0 ${getAccentClass('text')}`}><Lightbulb className="w-5 h-5" /></div>
+                  <div>
+                    <h3 className="font-semibold text-[15px] mb-1">Режим размышления</h3>
+                    <p className={`text-sm leading-relaxed ${theme === 'dark' ? 'text-white/70' : 'text-black/60'}`}>Внедрена функция пошагового логического анализа для решения сложных задач.</p>
+                  </div>
+                </div>
+                <div className="flex gap-4">
+                  <div className={`mt-1 flex-shrink-0 ${getAccentClass('text')}`}><Camera className="w-5 h-5" /></div>
+                  <div>
+                    <h3 className="font-semibold text-[15px] mb-1">Поддержка Vision</h3>
+                    <p className={`text-sm leading-relaxed ${theme === 'dark' ? 'text-white/70' : 'text-black/60'}`}>Добавлена возможность загрузки и анализа изображений искусственным интеллектом.</p>
+                  </div>
+                </div>
+                <div className="flex gap-4">
+                  <div className={`mt-1 flex-shrink-0 ${getAccentClass('text')}`}><Settings className="w-5 h-5" /></div>
+                  <div>
+                    <h3 className="font-semibold text-[15px] mb-1">Оптимизация UI</h3>
+                    <p className={`text-sm leading-relaxed ${theme === 'dark' ? 'text-white/70' : 'text-black/60'}`}>Обновлен внешний вид кнопок и ключевых элементов управления.</p>
+                  </div>
+                </div>
+                <div className="flex gap-4">
+                  <div className={`mt-1 flex-shrink-0 ${getAccentClass('text')}`}><Wrench className="w-5 h-5" /></div>
+                  <div>
+                    <h3 className="font-semibold text-[15px] mb-1">Повышение стабильности</h3>
+                    <p className={`text-sm leading-relaxed ${theme === 'dark' ? 'text-white/70' : 'text-black/60'}`}>Исправлены известные ошибки и улучшена общая производительность.</p>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => {
+                  localStorage.setItem('v1.4_seen', 'true');
+                  setShowUpdateModal(false);
+                }}
+                className={`w-full py-3 rounded-xl font-medium text-white transition-all duration-300 ${getAccentClass('bg')} ${getAccentClass('hover')} ${getAccentClass('shadow')} shadow-lg`}
+              >
+                Продолжить
+              </button>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

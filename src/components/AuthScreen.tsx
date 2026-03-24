@@ -138,23 +138,23 @@ export default function AuthScreen({ theme, accentColor, onLoginSuccess }: AuthS
         className="w-full max-w-[400px]"
       >
         <div className="flex flex-col items-start mb-12">
-          <h1 className={`text-4xl font-display font-bold tracking-tighter ${theme === 'dark' ? 'text-white' : 'text-gray-900'} flex items-center gap-0.5`}>
+          <h1 className={`text-4xl font-outfit font-bold tracking-tighter ${theme === 'dark' ? 'text-white' : 'text-black'} flex items-center gap-0.5`}>
             salaris<span className={getAccentClass('text')}>ai</span>
           </h1>
-          <p className={`mt-3 text-left ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+          <p className={`mt-3 text-left ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
             {mfaStep ? 'Введите 6-значный код безопасности' : (isLogin ? 'Вход в Salaris Account' : 'Регистрация в Salaris Account')}
           </p>
         </div>
 
-        <div className={`p-8 rounded-[2rem] border shadow-xl ${
+        <div className={`p-8 rounded-[2rem] border ${
           theme === 'dark' 
-            ? 'bg-[#1a1a1a] border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]' 
-            : 'bg-white border-gray-200/50 shadow-[0_8px_30px_rgba(0,0,0,0.04)]'
+            ? 'bg-[#1a1a1a] border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.1)]' 
+            : 'bg-white border-gray-200/50 shadow-[0_0_15px_rgba(0,0,0,0.12)]'
         }`}>
           {mfaStep ? (
             <form onSubmit={handleMfaVerify} className="space-y-6">
               <div className="relative">
-                <Lock className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`} />
+                <Lock className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${theme === 'dark' ? 'text-white' : 'text-black'}`} />
                 <input
                   type="text"
                   value={mfaCode}
@@ -164,8 +164,8 @@ export default function AuthScreen({ theme, accentColor, onLoginSuccess }: AuthS
                   autoFocus
                   className={`w-full h-14 pl-12 pr-4 text-center text-2xl tracking-[0.5em] font-mono rounded-full outline-none transition-colors ${
                     theme === 'dark' 
-                      ? 'bg-white/5 border border-white/10 text-white placeholder:text-gray-600 focus:border-white/20 focus:bg-white/10' 
-                      : 'bg-gray-50 border border-gray-200 text-gray-900 placeholder:text-gray-300 focus:border-gray-300 focus:bg-white'
+                      ? 'bg-white/5 border border-white/10 text-white placeholder:text-white/60 focus:border-white/20 focus:bg-white/10' 
+                      : 'bg-gray-50 border border-gray-200 text-black placeholder:text-black/60 focus:border-gray-300 focus:bg-white'
                   }`}
                 />
               </div>
@@ -183,7 +183,7 @@ export default function AuthScreen({ theme, accentColor, onLoginSuccess }: AuthS
               <button
                 type="button"
                 onClick={() => setMfaStep(false)}
-                className={`w-full text-sm font-medium ${theme === 'dark' ? 'text-gray-500 hover:text-gray-400' : 'text-gray-400 hover:text-gray-500'}`}
+                className={`w-full text-sm font-medium ${theme === 'dark' ? 'text-white hover:text-white/80' : 'text-black hover:text-black/80'}`}
               >
                 Вернуться к входу
               </button>
@@ -199,7 +199,7 @@ export default function AuthScreen({ theme, accentColor, onLoginSuccess }: AuthS
                   transition={{ duration: 0.3, ease: "easeInOut" }}
                   className="relative"
                 >
-                  <User className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`} />
+                  <User className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${theme === 'dark' ? 'text-white' : 'text-black'}`} />
                   <input
                     type="text"
                     value={displayName}
@@ -208,8 +208,8 @@ export default function AuthScreen({ theme, accentColor, onLoginSuccess }: AuthS
                     required={!isLogin}
                     className={`w-full h-12 pl-12 pr-4 rounded-full outline-none transition-colors ${
                       theme === 'dark' 
-                        ? 'bg-white/5 border border-white/10 text-white placeholder:text-gray-500 focus:border-white/20 focus:bg-white/10' 
-                        : 'bg-gray-50 border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-gray-300 focus:bg-white'
+                        ? 'bg-white/5 border border-white/10 text-white placeholder:text-white/60 focus:border-white/20 focus:bg-white/10' 
+                        : 'bg-gray-50 border border-gray-200 text-black placeholder:text-black/60 focus:border-gray-300 focus:bg-white'
                     }`}
                   />
                 </motion.div>
@@ -217,7 +217,7 @@ export default function AuthScreen({ theme, accentColor, onLoginSuccess }: AuthS
             </AnimatePresence>
             <div>
               <div className="relative">
-                <Mail className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`} />
+                <Mail className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${theme === 'dark' ? 'text-white' : 'text-black'}`} />
                 <input
                   type="email"
                   value={email}
@@ -226,15 +226,15 @@ export default function AuthScreen({ theme, accentColor, onLoginSuccess }: AuthS
                   required
                   className={`w-full h-12 pl-12 pr-4 rounded-full outline-none transition-colors ${
                     theme === 'dark' 
-                      ? 'bg-white/5 border border-white/10 text-white placeholder:text-gray-500 focus:border-white/20 focus:bg-white/10' 
-                      : 'bg-gray-50 border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-gray-300 focus:bg-white'
+                      ? 'bg-white/5 border border-white/10 text-white placeholder:text-white/60 focus:border-white/20 focus:bg-white/10' 
+                      : 'bg-gray-50 border border-gray-200 text-black placeholder:text-black/60 focus:border-gray-300 focus:bg-white'
                   }`}
                 />
               </div>
             </div>
             <div>
               <div className="relative">
-                <Lock className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`} />
+                <Lock className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${theme === 'dark' ? 'text-white' : 'text-black'}`} />
                 <input
                   type="password"
                   value={password}
@@ -244,8 +244,8 @@ export default function AuthScreen({ theme, accentColor, onLoginSuccess }: AuthS
                   minLength={6}
                   className={`w-full h-12 pl-12 pr-4 rounded-full outline-none transition-colors ${
                     theme === 'dark' 
-                      ? 'bg-white/5 border border-white/10 text-white placeholder:text-gray-500 focus:border-white/20 focus:bg-white/10' 
-                      : 'bg-gray-50 border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-gray-300 focus:bg-white'
+                      ? 'bg-white/5 border border-white/10 text-white placeholder:text-white/60 focus:border-white/20 focus:bg-white/10' 
+                      : 'bg-gray-50 border border-gray-200 text-black placeholder:text-black/60 focus:border-gray-300 focus:bg-white'
                   }`}
                 />
               </div>

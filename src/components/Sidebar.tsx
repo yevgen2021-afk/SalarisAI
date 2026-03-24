@@ -58,20 +58,20 @@ const Sidebar = React.memo(({
       className={`fixed inset-y-0 left-0 w-[70vw] md:w-72 flex flex-col z-0 ${
         theme === 'dark' 
           ? 'bg-[#050505] text-white' 
-          : 'bg-white text-gray-900'
+          : 'bg-white text-black'
       }`}
     >
       <div className="pt-6 px-6 pb-2">
-        <h1 className={`text-3xl font-display font-bold tracking-tighter ${theme === 'dark' ? 'text-white' : 'text-gray-900'} flex items-center gap-0.5`}>
+        <h1 className={`text-3xl font-outfit font-bold tracking-tighter ${theme === 'dark' ? 'text-white' : 'text-black'} flex items-center gap-0.5`}>
           salaris<span className={getAccentClass('text')}>ai</span>
         </h1>
       </div>
       <div className="px-4 pt-2 pb-6 flex items-center">
         <div 
-          className={`flex-1 flex items-center gap-2 px-4 h-11 rounded-full shadow-md border transition-colors ${theme === 'dark' ? 'bg-[#1a1a1a] border-white/10 text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]' : 'bg-white border-gray-200/50 text-black shadow-[0_4px_15px_rgba(0,0,0,0.05)]'}`}
+          className={`flex-1 flex items-center gap-2 px-4 h-11 rounded-full border transition-colors ${theme === 'dark' ? 'bg-[#1a1a1a] border-white/10 text-white shadow-[0_0_15px_rgba(0,0,0,0.1)]' : 'bg-white border-gray-200/50 text-black shadow-[0_0_15px_rgba(0,0,0,0.12)]'}`}
         >
           <div className="flex items-center justify-center">
-            <Search className="w-[18px] h-[18px] text-gray-400 flex-shrink-0" />
+            <Search className="w-[18px] h-[18px] text-white flex-shrink-0" />
           </div>
           <input 
             type="text"
@@ -80,7 +80,7 @@ const Sidebar = React.memo(({
             onChange={(e) => setSearchQuery(e.target.value)}
             onFocus={() => setIsSearchFocused(true)}
             onBlur={() => { if (!searchQuery) setIsSearchFocused(false); }}
-            className="bg-transparent border-none outline-none w-full text-sm placeholder:text-gray-400"
+            className={`bg-transparent border-none outline-none w-full text-sm ${theme === 'dark' ? 'placeholder:text-white/60' : 'placeholder:text-black/60'}`}
           />
         </div>
         <AnimatePresence mode="popLayout" initial={false}>
@@ -99,7 +99,7 @@ const Sidebar = React.memo(({
               }}
               style={{ willChange: "transform, opacity" }}
               onClick={handleNewChat}
-              className={`w-[44px] ml-2 h-11 flex items-center justify-center rounded-full shadow-md border flex-shrink-0 transition-colors overflow-hidden ${theme === 'dark' ? 'bg-[#1a1a1a] border-white/10 text-white hover:bg-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]' : 'bg-white border-gray-200/50 text-black hover:bg-gray-50 shadow-[0_4px_15px_rgba(0,0,0,0.05)]'}`}
+              className={`w-[44px] ml-2 h-11 flex items-center justify-center rounded-full border flex-shrink-0 transition-colors overflow-hidden ${theme === 'dark' ? 'bg-[#1a1a1a] border-white/10 text-white hover:bg-white/10 shadow-[0_0_15px_rgba(0,0,0,0.1)]' : 'bg-white border-gray-200/50 text-black hover:bg-gray-50 shadow-[0_0_15px_rgba(0,0,0,0.12)]'}`}
             >
               <SquarePen className="w-[18px] h-[18px] flex-shrink-0" />
             </motion.button>
@@ -126,8 +126,8 @@ const Sidebar = React.memo(({
               }}
               className={`group w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-left transition-colors cursor-pointer ${
                 activeChatId === chat.id 
-                  ? (theme === 'dark' ? 'bg-white/10 text-white' : 'bg-black/5 text-black') 
-                  : (theme === 'dark' ? 'text-gray-400 hover:bg-white/5 active:bg-white/10 hover:text-gray-200' : 'text-black hover:bg-black/5 active:bg-black/10')
+                  ? (theme === 'dark' ? 'bg-black/40 text-white' : 'bg-black/5 text-black') 
+                  : (theme === 'dark' ? 'text-white hover:bg-white/5 active:bg-white/10 hover:text-white' : 'text-black hover:bg-black/5 active:bg-black/10')
               }`}
             >
               <div className="flex-1 min-w-0 flex flex-col">
@@ -167,7 +167,7 @@ const Sidebar = React.memo(({
                             const rect = e.currentTarget.getBoundingClientRect();
                             onOpenChatMenu(chat, rect);
                           }}
-                          className={`w-full h-full flex items-center justify-center rounded-full shadow-md border transition-colors cursor-pointer ${theme === 'dark' ? 'bg-[#1a1a1a] border-white/10 text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]' : 'bg-white border-gray-200/50 text-black shadow-[0_4px_15px_rgba(0,0,0,0.05)]'}`}
+                          className={`w-full h-full flex items-center justify-center rounded-full border transition-colors cursor-pointer ${theme === 'dark' ? 'bg-[#1a1a1a] border-white/10 text-white shadow-[0_0_15px_rgba(0,0,0,0.1)]' : 'bg-white border-gray-200/50 text-black shadow-[0_0_15px_rgba(0,0,0,0.12)]'}`}
                         >
                           <MoreHorizontal className="w-[14px] h-[14px]" />
                         </button>
