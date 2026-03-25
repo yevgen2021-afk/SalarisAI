@@ -72,7 +72,6 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [showUpdateModal, setShowUpdateModal] = useState(() => !localStorage.getItem('v1.4_seen'));
   const [theme, setTheme] = useState<'dark' | 'light'>('light');
   const [autoTheme, setAutoTheme] = useState<boolean>(false);
   const [accentColor, setAccentColor] = useState<string>('laguna');
@@ -474,6 +473,8 @@ export default function App() {
   const isUserScrolling = useRef(false);
   const touchStartX = useRef<number | null>(null);
   const touchEndX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+  const touchEndY = useRef<number | null>(null);
 
   useLayoutEffect(() => {
     const textarea = textareaRef.current;
@@ -493,18 +494,25 @@ export default function App() {
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.targetTouches[0].clientX;
+    touchStartY.current = e.targetTouches[0].clientY;
     touchEndX.current = null;
+    touchEndY.current = null;
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
     touchEndX.current = e.targetTouches[0].clientX;
+    touchEndY.current = e.targetTouches[0].clientY;
   };
 
   const handleTouchEnd = () => {
-    if (touchStartX.current === null || touchEndX.current === null) return;
-    const distance = touchStartX.current - touchEndX.current;
-    const isLeftSwipe = distance > 50;
-    const isRightSwipe = distance < -50;
+    if (touchStartX.current === null || touchEndX.current === null || touchStartY.current === null || touchEndY.current === null) return;
+    const distanceX = touchStartX.current - touchEndX.current;
+    const distanceY = touchStartY.current - touchEndY.current;
+    
+    // Strictly horizontal swipe: horizontal distance must be significantly larger than vertical
+    const isHorizontal = Math.abs(distanceX) > Math.abs(distanceY) * 2;
+    const isLeftSwipe = distanceX > 50 && isHorizontal;
+    const isRightSwipe = distanceX < -50 && isHorizontal;
 
     // Right swipe opens sidebar (from anywhere)
     if (isRightSwipe && !isSidebarOpen) {
@@ -2331,7 +2339,7 @@ export default function App() {
                     Версия
                   </span>
                   <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
-                    1.4
+                    1.4.1
                   </span>
                 </div>
 
@@ -2454,106 +2462,6 @@ export default function App() {
       </AnimatePresence>
 
       <AnimatePresence>
-        {showUpdateModal && (
-          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => {
-                localStorage.setItem('v1.4_seen', 'true');
-                setShowUpdateModal(false);
-              }}
-              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className={`relative w-full max-w-md overflow-hidden rounded-3xl p-6 shadow-2xl backdrop-blur-2xl backdrop-saturate-150 ${
-                theme === 'dark'
-                  ? 'bg-[#1a1a1a]/80 border border-white/10 text-white'
-                  : 'bg-white/80 border border-black/5 text-black'
-              }`}
-            >
-              <div className="mb-6">
-                <h2 className="text-2xl font-bold mb-2">Обновление: Версия 1.4</h2>
-                <p className={`text-sm ${theme === 'dark' ? 'text-white/70' : 'text-black/60'}`}>
-                  Мы рады представить вам масштабное обновление платформы.
-                </p>
-              </div>
-
-              <div className="space-y-4 mb-8 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
-                <div className="flex gap-4">
-                  <div className={`mt-1 flex-shrink-0 ${getAccentClass('text')}`}><Image className="w-5 h-5" /></div>
-                  <div>
-                    <h3 className="font-semibold text-[15px] mb-1">Пользовательские обои</h3>
-                    <p className={`text-sm leading-relaxed ${theme === 'dark' ? 'text-white/70' : 'text-black/60'}`}>Добавлена возможность установки фоновых изображений (доступно в разделе «Настройки -&gt; Обои»).</p>
-                  </div>
-                </div>
-                <div className="flex gap-4">
-                  <div className={`mt-1 flex-shrink-0 ${getAccentClass('text')}`}><Cpu className="w-5 h-5" /></div>
-                  <div>
-                    <h3 className="font-semibold text-[15px] mb-1">Обновление ИИ-модели</h3>
-                    <p className={`text-sm leading-relaxed ${theme === 'dark' ? 'text-white/70' : 'text-black/60'}`}>Интегрирована улучшенная версия флагманской модели Osmium XL.</p>
-                  </div>
-                </div>
-                <div className="flex gap-4">
-                  <div className={`mt-1 flex-shrink-0 ${getAccentClass('text')}`}><Layout className="w-5 h-5" /></div>
-                  <div>
-                    <h3 className="font-semibold text-[15px] mb-1">Обновление интерфейса</h3>
-                    <p className={`text-sm leading-relaxed ${theme === 'dark' ? 'text-white/70' : 'text-black/60'}`}>Переработан дизайн боковой панели для повышения удобства навигации.</p>
-                  </div>
-                </div>
-                <div className="flex gap-4">
-                  <div className={`mt-1 flex-shrink-0 ${getAccentClass('text')}`}><Droplet className="w-5 h-5" /></div>
-                  <div>
-                    <h3 className="font-semibold text-[15px] mb-1">Улучшенный визуальный стиль</h3>
-                    <p className={`text-sm leading-relaxed ${theme === 'dark' ? 'text-white/70' : 'text-black/60'}`}>Доработан эффект матового стекла, добавлено тонирование для темной темы.</p>
-                  </div>
-                </div>
-                <div className="flex gap-4">
-                  <div className={`mt-1 flex-shrink-0 ${getAccentClass('text')}`}><Lightbulb className="w-5 h-5" /></div>
-                  <div>
-                    <h3 className="font-semibold text-[15px] mb-1">Режим размышления</h3>
-                    <p className={`text-sm leading-relaxed ${theme === 'dark' ? 'text-white/70' : 'text-black/60'}`}>Внедрена функция пошагового логического анализа для решения сложных задач.</p>
-                  </div>
-                </div>
-                <div className="flex gap-4">
-                  <div className={`mt-1 flex-shrink-0 ${getAccentClass('text')}`}><Camera className="w-5 h-5" /></div>
-                  <div>
-                    <h3 className="font-semibold text-[15px] mb-1">Поддержка Vision</h3>
-                    <p className={`text-sm leading-relaxed ${theme === 'dark' ? 'text-white/70' : 'text-black/60'}`}>Добавлена возможность загрузки и анализа изображений искусственным интеллектом.</p>
-                  </div>
-                </div>
-                <div className="flex gap-4">
-                  <div className={`mt-1 flex-shrink-0 ${getAccentClass('text')}`}><Settings className="w-5 h-5" /></div>
-                  <div>
-                    <h3 className="font-semibold text-[15px] mb-1">Оптимизация UI</h3>
-                    <p className={`text-sm leading-relaxed ${theme === 'dark' ? 'text-white/70' : 'text-black/60'}`}>Обновлен внешний вид кнопок и ключевых элементов управления.</p>
-                  </div>
-                </div>
-                <div className="flex gap-4">
-                  <div className={`mt-1 flex-shrink-0 ${getAccentClass('text')}`}><Wrench className="w-5 h-5" /></div>
-                  <div>
-                    <h3 className="font-semibold text-[15px] mb-1">Повышение стабильности</h3>
-                    <p className={`text-sm leading-relaxed ${theme === 'dark' ? 'text-white/70' : 'text-black/60'}`}>Исправлены известные ошибки и улучшена общая производительность.</p>
-                  </div>
-                </div>
-              </div>
-
-              <button
-                onClick={() => {
-                  localStorage.setItem('v1.4_seen', 'true');
-                  setShowUpdateModal(false);
-                }}
-                className={`w-full py-3 rounded-xl font-medium text-white transition-all duration-300 ${getAccentClass('bg')} ${getAccentClass('hover')} ${getAccentClass('shadow')} shadow-lg`}
-              >
-                Продолжить
-              </button>
-            </motion.div>
-          </div>
-        )}
       </AnimatePresence>
     </div>
   );

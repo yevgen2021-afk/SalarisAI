@@ -55,7 +55,7 @@ const Sidebar = React.memo(({
         restDelta: 0.001
       }}
       style={{ willChange: 'transform, opacity' }}
-      className={`fixed inset-y-0 left-0 w-[70vw] md:w-72 flex flex-col z-0 ${
+      className={`fixed inset-y-0 left-0 w-[70vw] md:w-72 flex flex-col z-1 ${
         theme === 'dark' 
           ? 'bg-[#050505] text-white' 
           : 'bg-white text-black'
