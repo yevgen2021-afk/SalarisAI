@@ -55,22 +55,14 @@ export default function ReportModal({ isOpen, onClose, onSubmit, theme, isSubmit
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            style={{ willChange: "opacity" }}
-            className="absolute inset-0 bg-black/30 backdrop-blur-[12px]"
-          />
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 pointer-events-none">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
             transition={{ type: "spring", damping: 25, stiffness: 500, mass: 0.8 }}
             style={{ willChange: "transform, opacity" }}
-            className={`relative w-full max-w-[400px] rounded-[2rem] overflow-hidden hyper-glass hyper-glass-shadow`}
+            className={`relative w-full max-w-[400px] rounded-[2rem] overflow-hidden hyper-glass hyper-glass-shadow pointer-events-auto`}
           >
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">

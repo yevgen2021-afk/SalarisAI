@@ -464,6 +464,7 @@ export default function App() {
   }, [chats, activeChatId, theme, autoTheme, accentColor, isGlowEnabled, selectedModel, backgroundImage, isLoaded]);
 
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
+  const isAnyOverlayOpen = !!(isSettingsOpen || isReportModalOpen || isDeleteConfirmOpen || isActionMenuOpen || activeChatMenu || editingChatId);
   const [editingTitle, setEditingTitle] = useState('');
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -515,11 +516,11 @@ export default function App() {
     const isRightSwipe = distanceX < -50 && isHorizontal;
 
     // Right swipe opens sidebar (from anywhere)
-    if (isRightSwipe && !isSidebarOpen) {
+    if (isRightSwipe && !isSidebarOpen && !isAnyOverlayOpen) {
       setIsSidebarOpen(true);
     }
     // Left swipe closes sidebar
-    if (isLeftSwipe && isSidebarOpen) {
+    if (isLeftSwipe && isSidebarOpen && !isAnyOverlayOpen) {
       setIsSidebarOpen(false);
     }
   };
@@ -1073,17 +1074,8 @@ export default function App() {
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      style={backgroundImage ? { 
-        backgroundImage: `url(${backgroundImage})`, 
-        backgroundSize: 'cover', 
-        backgroundPosition: 'center' 
-      } : {}}
       className={`flex h-screen ${theme === 'dark' ? 'bg-[#050505] text-white' : 'bg-white text-black'} font-sans selection:bg-red-500/30 overflow-hidden transition-colors duration-500 relative`}
     >
-      {backgroundImage && (
-        <div className={`absolute inset-0 z-0 backdrop-blur-[3px] pointer-events-none transition-colors duration-500 ${theme === 'dark' ? 'bg-black/20' : 'bg-transparent'}`} />
-      )}
-      
       <Sidebar 
         isSidebarOpen={isSidebarOpen}
         setIsSidebarOpen={setIsSidebarOpen}
@@ -1120,9 +1112,19 @@ export default function App() {
           mass: 1,
           restDelta: 0.001
         }}
-        style={{ willChange: 'transform, border-radius' }}
-        className={`flex-1 flex flex-col min-w-0 relative z-10 overflow-hidden border-l shadow-2xl ${backgroundImage ? 'bg-transparent' : (theme === 'dark' ? 'bg-[#050505]' : 'bg-[#f8f9fa]')}`}
+        style={{ 
+          willChange: 'transform, border-radius',
+          ...(backgroundImage ? { 
+            backgroundImage: `url(${backgroundImage})`, 
+            backgroundSize: 'cover', 
+            backgroundPosition: 'center' 
+          } : {})
+        }}
+        className={`flex-1 flex flex-col min-w-0 relative z-10 overflow-hidden border-l shadow-2xl ${theme === 'dark' ? 'bg-[#050505]' : 'bg-[#f8f9fa]'}`}
       >
+        {backgroundImage && (
+          <div className={`absolute inset-0 z-0 backdrop-blur-[3px] pointer-events-none transition-colors duration-500 ${theme === 'dark' ? 'bg-black/20' : 'bg-transparent'}`} />
+        )}
         {/* Ambient Glow Background - Moved inside to clip with rounded corners and move with content */}
         <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
           {isGlowEnabled && !backgroundImage && (
@@ -1167,7 +1169,11 @@ export default function App() {
               whileHover={{ scale: 1.15 }}
               whileTap={{ scale: 1.1 }}
               style={{ willChange: "transform" }}
-              onClick={() => setIsSidebarOpen(true)}
+              onClick={() => {
+                if (!isAnyOverlayOpen) {
+                  setIsSidebarOpen(true);
+                }
+              }}
               className={`w-11 h-11 flex items-center justify-center rounded-full border transition-colors backdrop-blur-xl ${
                 theme === 'dark' 
                   ? 'bg-black/40 border-white/10 text-white shadow-[0_0_15px_rgba(0,0,0,0.1)]' 
@@ -1697,8 +1703,8 @@ export default function App() {
                     placeholder="Название"
                     className={`appearance-none border border-transparent shadow-none w-full py-3 px-5 text-base transition-all duration-300 focus:outline-none focus:ring-0 rounded-full ${
                       theme === 'dark' 
-                        ? 'bg-black/40 text-white placeholder-white/40 focus:bg-white/20' 
-                        : 'bg-gray-300 text-black placeholder-black/60 focus:bg-gray-400'
+                        ? 'bg-black/40 text-white placeholder-white/40' 
+                        : 'bg-gray-300 text-black placeholder-black/60'
                     }`}
                   />
                 </div>
@@ -1993,8 +1999,8 @@ export default function App() {
                       onChange={(e) => setTempName(e.target.value)}
                       className={`appearance-none border border-transparent shadow-none w-full h-10 px-4 text-sm transition-all duration-300 focus:outline-none focus:ring-0 rounded-full ${
                         theme === 'dark' 
-                          ? 'bg-black/40 text-white placeholder-white/40 focus:bg-white/20' 
-                          : 'bg-gray-300 text-black placeholder-black/60 focus:bg-gray-400'
+                          ? 'bg-black/40 text-white placeholder-white/40' 
+                          : 'bg-gray-300 text-black placeholder-black/60'
                       }`}
                     />
                   </div>
@@ -2339,7 +2345,7 @@ export default function App() {
                     Версия
                   </span>
                   <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
-                    1.4.1
+                    1.4.2
                   </span>
                 </div>
 

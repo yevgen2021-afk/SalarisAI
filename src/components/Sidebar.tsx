@@ -20,6 +20,7 @@ interface SidebarProps {
   onOpenChatMenu: (chat: Chat, rect: DOMRect) => void;
   activeChatMenu: { chat: Chat, rect: DOMRect } | null;
   getAccentClass: (type: 'bg' | 'text' | 'border' | 'shadow' | 'hover') => string;
+  style?: React.CSSProperties;
 }
 
 const Sidebar = React.memo(({
@@ -39,6 +40,7 @@ const Sidebar = React.memo(({
   onOpenChatMenu,
   activeChatMenu,
   getAccentClass,
+  style,
 }: SidebarProps) => {
   return (
     <motion.aside 
@@ -54,8 +56,8 @@ const Sidebar = React.memo(({
         mass: 1,
         restDelta: 0.001
       }}
-      style={{ willChange: 'transform, opacity' }}
-      className={`fixed inset-y-0 left-0 w-[70vw] md:w-72 flex flex-col z-1 ${
+      style={{ ...style, willChange: 'transform, opacity' }}
+      className={`fixed inset-y-0 left-0 w-[70vw] md:w-72 flex flex-col z-0 ${
         theme === 'dark' 
           ? 'bg-[#050505] text-white' 
           : 'bg-white text-black'
@@ -68,19 +70,18 @@ const Sidebar = React.memo(({
       </div>
       <div className="px-4 pt-2 pb-6 flex items-center">
         <div 
-          className={`flex-1 flex items-center gap-2 px-4 h-11 rounded-full border transition-colors ${theme === 'dark' ? 'bg-[#1a1a1a] border-white/10 text-white shadow-[0_0_15px_rgba(0,0,0,0.1)]' : 'bg-white border-gray-200/50 text-black shadow-[0_0_15px_rgba(0,0,0,0.12)]'}`}
+          className={`flex-1 flex items-center gap-1.5 px-3 h-11 rounded-full border transition-colors ${theme === 'dark' ? 'bg-[#1a1a1a] border-white/10 text-white shadow-[0_0_15px_rgba(0,0,0,0.1)]' : 'bg-white border-gray-200/50 text-black shadow-[0_0_15px_rgba(0,0,0,0.12)]'}`}
         >
           <div className="flex items-center justify-center">
-            <Search className="w-[18px] h-[18px] text-white flex-shrink-0" />
+            <Search className={`w-[18px] h-[18px] flex-shrink-0 ${theme === 'dark' ? 'text-white/60' : 'text-black/60'}`} />
           </div>
           <input 
             type="text"
-            placeholder="Поиск..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onFocus={() => setIsSearchFocused(true)}
             onBlur={() => { if (!searchQuery) setIsSearchFocused(false); }}
-            className={`bg-transparent border-none outline-none w-full text-sm ${theme === 'dark' ? 'placeholder:text-white/60' : 'placeholder:text-black/60'}`}
+            className={`bg-transparent border-none outline-none w-full text-sm ${theme === 'dark' ? 'text-white' : 'text-black'}`}
           />
         </div>
         <AnimatePresence mode="popLayout" initial={false}>
