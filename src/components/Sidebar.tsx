@@ -63,7 +63,10 @@ const Sidebar = React.memo(({
           : 'bg-white text-black'
       }`}
     >
-      <div className="pt-6 px-6 pb-2">
+      <div 
+        style={{ paddingTop: 'calc(2rem + env(safe-area-inset-top))' }}
+        className="px-6 pb-2"
+      >
         <h1 className={`text-3xl font-outfit font-bold tracking-tighter ${theme === 'dark' ? 'text-white' : 'text-black'} flex items-center gap-0.5`}>
           salaris<span className={getAccentClass('text')}>ai</span>
         </h1>

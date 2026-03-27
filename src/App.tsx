@@ -1148,7 +1148,10 @@ export default function App() {
         </AnimatePresence>
 
         {/* Header */}
-        <header className="absolute top-0 left-0 right-0 z-50 px-4 md:px-8 pt-4 pb-12 flex items-start justify-between pointer-events-none">
+        <header 
+          style={{ paddingTop: 'calc(1.5rem + env(safe-area-inset-top))' }}
+          className="absolute top-0 left-0 right-0 z-50 px-4 md:px-8 pb-12 flex items-start justify-between pointer-events-none"
+        >
           <div 
             className={`absolute inset-0 pointer-events-none transition-opacity duration-500 ease-in-out ${
               isScrolled && activeChat.messages.length > 0 ? 'opacity-100' : 'opacity-0'
