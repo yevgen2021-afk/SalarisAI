@@ -27,18 +27,6 @@
   background: rgba(128, 128, 128, 0.4);
 }
 
-html, body {
-  overscroll-behavior: none;
-  overflow: hidden;
-  height: 100dvh;
-  width: 100vw;
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-}
-
 body {
   transition: background-color 0.5s cubic-bezier(0.4, 0, 0.2, 1), color 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
