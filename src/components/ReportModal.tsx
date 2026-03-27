@@ -41,7 +41,7 @@ export default function ReportModal({ isOpen, onClose, onSubmit, theme, isSubmit
   const getButtonColor = () => {
     switch (type) {
       case 'like': return 'bg-emerald-500 hover:bg-emerald-600';
-      case 'dislike': return 'bg-orange-500 hover:bg-orange-600';
+      case 'dislike': return 'bg-red-500 hover:bg-red-600';
       default: return 'bg-red-500 hover:bg-red-600';
     }
   };
@@ -55,14 +55,26 @@ export default function ReportModal({ isOpen, onClose, onSubmit, theme, isSubmit
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 pointer-events-none">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            style={{ willChange: "opacity" }}
+            className="absolute inset-0 bg-black/10 backdrop-blur-[2px]"
+          />
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
             transition={{ type: "spring", damping: 25, stiffness: 500, mass: 0.8 }}
             style={{ willChange: "transform, opacity" }}
-            className={`relative w-full max-w-[400px] rounded-[2rem] overflow-hidden hyper-glass hyper-glass-shadow pointer-events-auto`}
+            className={`relative w-full max-w-[400px] rounded-[2rem] overflow-hidden border ${
+              theme === 'dark' 
+                ? 'bg-black/40 border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.1)]' 
+                : 'bg-white/30 border-white/40 shadow-[0_0_15px_rgba(0,0,0,0.12)]'
+            } backdrop-blur-xl pointer-events-auto`}
           >
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
@@ -85,20 +97,20 @@ export default function ReportModal({ isOpen, onClose, onSubmit, theme, isSubmit
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder={getPlaceholder()}
-                className={`w-full h-32 p-4 rounded-2xl resize-none outline-none transition-colors ${
+                className={`w-full h-32 p-4 rounded-[1.5rem] resize-none outline-none transition-colors ${
                   theme === 'dark' 
                     ? 'bg-white/5 border border-white/10 text-white placeholder:text-white/60 focus:border-white/20 focus:bg-white/10' 
-                    : 'bg-gray-50 border border-gray-200 text-black placeholder:text-black/60 focus:border-gray-300 focus:bg-white'
+                    : 'bg-black/5 border border-black/10 text-black placeholder:text-black/60 focus:border-black/20 focus:bg-black/10'
                 }`}
               />
 
               <div className="flex gap-3 mt-6">
                 <button
                   onClick={onClose}
-                  className={`flex-1 py-3 rounded-xl font-medium transition-colors ${
+                  className={`flex-1 py-3 rounded-full font-medium transition-colors ${
                     theme === 'dark'
                       ? 'bg-white/10 hover:bg-white/20 text-white'
-                      : 'bg-gray-100 hover:bg-gray-200 text-black'
+                      : 'bg-black/5 hover:bg-black/10 text-black'
                   }`}
                 >
                   Отмена
@@ -106,7 +118,7 @@ export default function ReportModal({ isOpen, onClose, onSubmit, theme, isSubmit
                 <button
                   onClick={handleSubmit}
                   disabled={!reason.trim() || isSubmitting}
-                  className={`flex-1 py-3 rounded-xl font-medium text-white transition-opacity ${
+                  className={`flex-1 py-3 rounded-full font-medium text-white transition-opacity ${
                     !reason.trim() || isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
                   } ${getButtonColor()}`}
                 >

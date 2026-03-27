@@ -12,24 +12,6 @@
   --glass-opacity-hover: 0.12;
 }
 
-.ambient-blob {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(120px);
-  opacity: 0.5;
-  mix-blend-mode: screen;
-  will-change: transform;
-}
-
-.dark .ambient-blob {
-  opacity: 0.35;
-}
-
-.light .ambient-blob {
-  opacity: 0.25;
-  mix-blend-mode: soft-light;
-}
-
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 4px;

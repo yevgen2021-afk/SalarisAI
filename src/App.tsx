@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
 import localforage from 'localforage';
-import { ArrowUp, ArrowDown, Menu, Settings, Trash2, Info, X, SquarePen, Plus, Paintbrush, ChevronLeft, Check, Square, AlertCircle, User, LogOut, Camera, Lightbulb, FlaskConical, Pencil, PanelLeft, Image, Upload, Cpu, Layout, Droplet, Wrench } from 'lucide-react';
+import { ArrowUp, ArrowDown, Menu, Settings, Trash2, Info, X, SquarePen, Plus, Paintbrush, ChevronLeft, ChevronDown, Check, Square, AlertCircle, User, LogOut, Camera, Lightbulb, FlaskConical, Pencil, PanelLeft, Image, Upload, Cpu, Layout, Droplet, Wrench } from 'lucide-react';
 import { motion, AnimatePresence, useAnimation } from 'motion/react';
 import { Chat, Message } from './types';
 import { generateGroqResponseStream } from './services/groq';
@@ -464,7 +464,9 @@ export default function App() {
   }, [chats, activeChatId, theme, autoTheme, accentColor, isGlowEnabled, selectedModel, backgroundImage, isLoaded]);
 
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
-  const isAnyOverlayOpen = !!(isSettingsOpen || isReportModalOpen || isDeleteConfirmOpen || isActionMenuOpen || activeChatMenu || editingChatId);
+  const [selectedMode, setSelectedMode] = useState<string>('SalarisAI');
+  const [isModeMenuOpen, setIsModeMenuOpen] = useState(false);
+  const isAnyOverlayOpen = !!(isSettingsOpen || isReportModalOpen || isDeleteConfirmOpen || isActionMenuOpen || activeChatMenu || editingChatId || isModeMenuOpen);
   const [editingTitle, setEditingTitle] = useState('');
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -1123,19 +1125,8 @@ export default function App() {
         className={`flex-1 flex flex-col min-w-0 relative z-10 overflow-hidden border-l shadow-2xl ${theme === 'dark' ? 'bg-[#050505]' : 'bg-[#f8f9fa]'}`}
       >
         {backgroundImage && (
-          <div className={`absolute inset-0 z-0 backdrop-blur-[3px] pointer-events-none transition-colors duration-500 ${theme === 'dark' ? 'bg-black/20' : 'bg-transparent'}`} />
+          <div className={`absolute inset-0 z-0 pointer-events-none transition-colors duration-500 ${theme === 'dark' ? 'bg-black/20' : 'bg-transparent'}`} />
         )}
-        {/* Ambient Glow Background - Moved inside to clip with rounded corners and move with content */}
-        <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-          {isGlowEnabled && !backgroundImage && (
-            <>
-              <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-[#ff0080] ambient-blob"></div>
-              <div className="absolute top-[40%] right-[-10%] w-[40vw] h-[40vw] bg-[#8000ff] ambient-blob"></div>
-              <div className="absolute bottom-[-10%] left-[20%] w-[60vw] h-[60vw] bg-[#0080ff] ambient-blob"></div>
-              <div className="absolute top-[10%] right-[20%] w-[30vw] h-[30vw] bg-[#00ff80] ambient-blob"></div>
-            </>
-          )}
-        </div>
 
         {/* Overlay when sidebar is open */}
         <AnimatePresence>
@@ -1184,18 +1175,62 @@ export default function App() {
             </motion.button>
           </div>
 
-          <div className="relative z-10 flex flex-col items-center gap-1.5 pointer-events-auto">
-            <motion.div 
-              whileHover={{ scale: 1.15 }}
-              whileTap={{ scale: 1.1 }}
+          <div className="relative z-10 flex flex-col items-center justify-start w-1/3 pointer-events-auto">
+            <motion.button 
+              disabled
               style={{ willChange: "transform" }}
-              className={`w-16 h-11 flex items-center justify-center rounded-full border transition-colors backdrop-blur-xl ${
+              className={`h-11 px-4 flex items-center justify-center gap-2 rounded-full border transition-colors outline-none focus:outline-none [-webkit-tap-highlight-color:transparent] backdrop-blur-xl opacity-60 cursor-not-allowed ${
                 theme === 'dark' 
                   ? 'bg-black/40 border-white/10 text-white shadow-[0_0_15px_rgba(0,0,0,0.1)]' 
                   : 'bg-white/30 border-white/40 text-black shadow-[0_0_15px_rgba(0,0,0,0.12)]'
               }`}
             >
-            </motion.div>
+              <span className="font-medium text-sm">{selectedMode} (beta)</span>
+              <ChevronDown className="w-4 h-4 opacity-50" />
+            </motion.button>
+
+            <AnimatePresence>
+              {isModeMenuOpen && (
+                <motion.div
+                  initial={{ scale: 0, opacity: 0, z: 0 }}
+                  animate={{ 
+                    scale: 1, 
+                    opacity: 1,
+                    z: 0,
+                    transition: { type: "spring", damping: 25, stiffness: 400 } 
+                  }}
+                  exit={{ scale: 0, opacity: 0, transition: { duration: 0.15, ease: "easeOut" } }}
+                  style={{ 
+                    transformOrigin: 'top center',
+                    willChange: "transform, opacity"
+                  }}
+                  className={`absolute top-14 left-1/2 -translate-x-1/2 flex flex-col w-48 rounded-[2rem] overflow-hidden p-2 backdrop-blur-xl backdrop-saturate-150 border ${
+                    theme === 'dark' 
+                      ? 'bg-black/40 border-white/10 text-white shadow-[0_0_15px_rgba(0,0,0,0.1)]' 
+                      : 'bg-white/30 border-white/40 text-black shadow-[0_0_15px_rgba(0,0,0,0.12)]'
+                  }`}
+                >
+                  {['SalarisAI', 'Саларис', 'Техас', 'Комбайнёр'].map((mode) => (
+                    <motion.button
+                      key={mode}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => {
+                        setSelectedMode(mode);
+                        setIsModeMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-4 py-3 rounded-full text-sm font-medium transition-colors outline-none focus:outline-none [-webkit-tap-highlight-color:transparent] ${
+                        theme === 'dark' 
+                          ? 'hover:bg-white/10 active:bg-white/20 text-white' 
+                          : 'hover:bg-black/5 active:bg-black/10 text-black'
+                      }`}
+                    >
+                      {mode}
+                      {selectedMode === mode && <Check className="w-4 h-4" />}
+                    </motion.button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
           
           <div className="relative z-10 flex justify-end items-start w-1/3 pointer-events-auto h-11">
@@ -1547,9 +1582,6 @@ export default function App() {
             </div>
 
             <div className="relative group flex-1">
-              {/* Soft diffuse shadow for floating effect */}
-              <div className={`absolute inset-0 rounded-[2rem] shadow-[0_0_15px_rgba(0,0,0,0.12)] ${theme === 'dark' ? 'shadow-[0_0_15px_rgba(0,0,0,0.1)]' : ''} pointer-events-none`}></div>
-            
               {/* Pastel rainbow glow (bloom) */}
               {isGlowEnabled && (
                 <div className="absolute -inset-[1px] z-0 opacity-0 group-focus-within:opacity-100 transition-opacity duration-700 blur-[8px]">
@@ -1560,7 +1592,7 @@ export default function App() {
               )}
 
               {/* Input Bar Container */}
-              <div className={`relative z-10 flex flex-col rounded-[2rem] p-1.5 backdrop-blur-xl backdrop-saturate-150 border ${backgroundImage ? (theme === 'dark' ? 'bg-black/40 border-white/20 shadow-[0_0_15px_rgba(0,0,0,0.15)]' : 'bg-white/60 border-black/10 shadow-[0_0_15px_rgba(0,0,0,0.12)]') : (theme === 'dark' ? 'bg-black/40 border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.1)]' : 'bg-white/30 border-white/40 shadow-[0_0_15px_rgba(0,0,0,0.12)]')}`}>
+              <div className={`relative z-10 flex flex-col rounded-[2rem] p-1.5 backdrop-blur-xl backdrop-saturate-150 border ${backgroundImage ? (theme === 'dark' ? 'bg-black/40 border-white/20 shadow-[0_0_15px_rgba(0,0,0,0.1)]' : 'bg-white/60 border-black/10 shadow-[0_0_15px_rgba(0,0,0,0.12)]') : (theme === 'dark' ? 'bg-black/40 border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.1)]' : 'bg-white/30 border-white/40 shadow-[0_0_15px_rgba(0,0,0,0.12)]')}`}>
                 
                 {/* Top section: Pills and Image Preview */}
                 <AnimatePresence initial={false}>
@@ -1785,6 +1817,21 @@ export default function App() {
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isModeMenuOpen && (
+          <motion.div
+            key="mode-menu-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            onClick={() => setIsModeMenuOpen(false)}
+            style={{ willChange: "opacity" }}
+            className="fixed inset-0 z-[40] bg-black/10 backdrop-blur-[2px]"
+          />
         )}
       </AnimatePresence>
 
@@ -2345,7 +2392,7 @@ export default function App() {
                     Версия
                   </span>
                   <span className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
-                    1.4.2
+                    1.5
                   </span>
                 </div>
 

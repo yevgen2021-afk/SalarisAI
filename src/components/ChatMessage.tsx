@@ -14,39 +14,30 @@ interface ChatMessageProps {
   theme: 'dark' | 'light';
   isTyping?: boolean;
   accentColor: string;
-  isGlowEnabled: boolean;
   onRegenerate?: (id: string) => void;
   onReport?: (id: string) => void;
   onLike?: (id: string) => void;
   onDislike?: (id: string) => void;
 }
 
-const ChatMessage = memo(({ id, role, content, images, theme, isTyping, accentColor, isGlowEnabled, onRegenerate, onReport, onLike, onDislike }: ChatMessageProps) => {
+const ChatMessage = memo(({ id, role, content, images, theme, isTyping, accentColor, onRegenerate, onReport, onLike, onDislike }: ChatMessageProps) => {
   const isUser = role === 'user';
-  const [showFinishGlow, setShowFinishGlow] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [showActions, setShowActions] = useState(!isTyping);
   const prevIsTyping = useRef(isTyping);
 
   useEffect(() => {
-    let glowTimer: NodeJS.Timeout;
     let actionTimer: NodeJS.Timeout;
 
     if (prevIsTyping.current === true && isTyping === false) {
-      if (isGlowEnabled) {
-        setShowFinishGlow(true);
-        glowTimer = setTimeout(() => setShowFinishGlow(false), 1500);
-      }
       actionTimer = setTimeout(() => setShowActions(true), 1500);
     } else if (isTyping) {
       setShowActions(false);
-      setShowFinishGlow(false);
     }
 
     prevIsTyping.current = isTyping;
 
     return () => {
-      clearTimeout(glowTimer);
       clearTimeout(actionTimer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -148,25 +139,8 @@ const ChatMessage = memo(({ id, role, content, images, theme, isTyping, accentCo
       style={{ transformOrigin: 'center' }}
       className={`flex w-full ${isUser ? 'justify-end' : 'justify-start'} mb-12 group`}
     >
-      {isUser && (
-        <button 
-          onClick={handleCopy}
-          className={`mr-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 p-2 rounded-full self-center ${theme === 'dark' ? 'hover:bg-white/10 text-white hover:text-white' : 'hover:bg-black/5 text-black hover:text-black'}`}
-          title="Копировать"
-        >
-          {isCopied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
-        </button>
-      )}
       <div className="relative max-w-[85%] md:max-w-[75%] w-fit">
         <div className="relative">
-          {/* Glow Effect */}
-          {!isUser && isGlowEnabled && (
-            <div className={`absolute -inset-[1px] z-0 transition-opacity duration-700 blur-[8px] ${isTyping || showFinishGlow ? 'opacity-100' : 'opacity-0'}`}>
-              <div className="w-full h-full rounded-[2rem] overflow-hidden relative">
-                <div className="absolute top-1/2 left-1/2 w-[4000px] h-[4000px] max-w-none max-h-none bg-[conic-gradient(from_0deg,#ffb3ba,#ffdfba,#ffffba,#baffc9,#bae1ff,#dcbaff,#ffb3ba)] animate-spin-center"></div>
-              </div>
-            </div>
-          )}
           {/* Message Content */}
           <AnimatePresence mode="wait">
               <motion.div
@@ -253,6 +227,21 @@ const ChatMessage = memo(({ id, role, content, images, theme, isTyping, accentCo
                 </motion.button>
               )}
             </div>
+          </div>
+        )}
+        
+        {/* User Action Icons */}
+        {isUser && (
+          <div className="absolute top-full right-2 mt-2 flex items-center gap-2 z-20 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200">
+            <motion.button 
+              whileHover={{ scale: 1.15 }}
+              whileTap={{ scale: 1.1 }}
+              onClick={handleCopy}
+              className={`p-1.5 rounded-full transition-colors backdrop-blur-xl backdrop-saturate-150 ${theme === 'dark' ? 'bg-black/40 border border-white/20 text-white hover:text-white shadow-[0_0_15px_rgba(0,0,0,0.1)]' : 'bg-white/60 border-white/40 text-black hover:text-black shadow-[0_0_15px_rgba(0,0,0,0.12)]'}`}
+              title="Копировать"
+            >
+              {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+            </motion.button>
           </div>
         )}
       </div>

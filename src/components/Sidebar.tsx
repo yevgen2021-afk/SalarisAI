@@ -59,7 +59,7 @@ const Sidebar = React.memo(({
       style={{ ...style, willChange: 'transform, opacity' }}
       className={`fixed inset-y-0 left-0 w-[70vw] md:w-72 flex flex-col z-0 ${
         theme === 'dark' 
-          ? 'bg-[#050505] text-white' 
+          ? 'bg-black text-white' 
           : 'bg-white text-black'
       }`}
     >
@@ -70,7 +70,7 @@ const Sidebar = React.memo(({
       </div>
       <div className="px-4 pt-2 pb-6 flex items-center">
         <div 
-          className={`flex-1 flex items-center gap-1.5 px-3 h-11 rounded-full border transition-colors ${theme === 'dark' ? 'bg-[#1a1a1a] border-white/10 text-white shadow-[0_0_15px_rgba(0,0,0,0.1)]' : 'bg-white border-gray-200/50 text-black shadow-[0_0_15px_rgba(0,0,0,0.12)]'}`}
+          className={`flex-1 flex items-center gap-1.5 px-3 h-11 rounded-full border transition-colors ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white shadow-[0_0_15px_rgba(0,0,0,0.1)]' : 'bg-white/30 border-white/40 text-black shadow-[0_0_15px_rgba(0,0,0,0.12)]'}`}
         >
           <div className="flex items-center justify-center">
             <Search className={`w-[18px] h-[18px] flex-shrink-0 ${theme === 'dark' ? 'text-white/60' : 'text-black/60'}`} />
@@ -100,7 +100,7 @@ const Sidebar = React.memo(({
               }}
               style={{ willChange: "transform, opacity" }}
               onClick={handleNewChat}
-              className={`w-[44px] ml-2 h-11 flex items-center justify-center rounded-full border flex-shrink-0 transition-colors overflow-hidden ${theme === 'dark' ? 'bg-[#1a1a1a] border-white/10 text-white hover:bg-white/10 shadow-[0_0_15px_rgba(0,0,0,0.1)]' : 'bg-white border-gray-200/50 text-black hover:bg-gray-50 shadow-[0_0_15px_rgba(0,0,0,0.12)]'}`}
+              className={`w-[44px] ml-2 h-11 flex items-center justify-center rounded-full border flex-shrink-0 transition-colors overflow-hidden ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white hover:bg-white/10 shadow-[0_0_15px_rgba(0,0,0,0.1)]' : 'bg-white/30 border-white/40 text-black hover:bg-gray-50 shadow-[0_0_15px_rgba(0,0,0,0.12)]'}`}
             >
               <SquarePen className="w-[18px] h-[18px] flex-shrink-0" />
             </motion.button>
@@ -168,7 +168,7 @@ const Sidebar = React.memo(({
                             const rect = e.currentTarget.getBoundingClientRect();
                             onOpenChatMenu(chat, rect);
                           }}
-                          className={`w-full h-full flex items-center justify-center rounded-full border transition-colors cursor-pointer ${theme === 'dark' ? 'bg-[#1a1a1a] border-white/10 text-white shadow-[0_0_15px_rgba(0,0,0,0.1)]' : 'bg-white border-gray-200/50 text-black shadow-[0_0_15px_rgba(0,0,0,0.12)]'}`}
+                          className={`w-full h-full flex items-center justify-center rounded-full border transition-colors cursor-pointer ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white shadow-[0_0_15px_rgba(0,0,0,0.1)]' : 'bg-white/30 border-white/40 text-black shadow-[0_0_15px_rgba(0,0,0,0.12)]'}`}
                         >
                           <MoreHorizontal className="w-[14px] h-[14px]" />
                         </button>

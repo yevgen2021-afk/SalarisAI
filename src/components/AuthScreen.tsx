@@ -20,15 +20,15 @@ export default function AuthScreen({ theme, accentColor, onLoginSuccess }: AuthS
   const [mfaStep, setMfaStep] = useState(false);
   const [mfaCode, setMfaCode] = useState('');
 
-  const getAccentClass = (type: 'bg' | 'text' | 'border' | 'hover') => {
+  const getAccentClass = (type: 'bg' | 'text' | 'border' | 'hover' | 'shadow') => {
     switch (accentColor) {
-      case 'pink': return type === 'bg' ? 'bg-pink-500' : type === 'text' ? 'text-pink-500' : type === 'border' ? 'border-pink-500' : 'hover:bg-pink-600';
-      case 'purple': return type === 'bg' ? 'bg-purple-500' : type === 'text' ? 'text-purple-500' : type === 'border' ? 'border-purple-500' : 'hover:bg-purple-600';
-      case 'emerald': return type === 'bg' ? 'bg-emerald-500' : type === 'text' ? 'text-emerald-500' : type === 'border' ? 'border-emerald-500' : 'hover:bg-emerald-600';
-      case 'red': return type === 'bg' ? 'bg-red-500' : type === 'text' ? 'text-red-500' : type === 'border' ? 'border-red-500' : 'hover:bg-red-600';
-      case 'orange': return type === 'bg' ? 'bg-orange-500' : type === 'text' ? 'text-orange-500' : type === 'border' ? 'border-orange-500' : 'hover:bg-orange-600';
+      case 'pink': return type === 'bg' ? 'bg-pink-400' : type === 'text' ? 'text-pink-400' : type === 'border' ? 'border-pink-400' : type === 'shadow' ? 'shadow-pink-400/20' : 'hover:bg-pink-500';
+      case 'purple': return type === 'bg' ? 'bg-purple-500' : type === 'text' ? 'text-purple-500' : type === 'border' ? 'border-purple-500' : type === 'shadow' ? 'shadow-purple-500/20' : 'hover:bg-purple-600';
+      case 'emerald': return type === 'bg' ? 'bg-emerald-400' : type === 'text' ? 'text-emerald-400' : type === 'border' ? 'border-emerald-400' : type === 'shadow' ? 'shadow-emerald-400/20' : 'hover:bg-emerald-500';
+      case 'red': return type === 'bg' ? 'bg-red-500' : type === 'text' ? 'text-red-500' : type === 'border' ? 'border-red-500' : type === 'shadow' ? 'shadow-red-500/20' : 'hover:bg-red-600';
+      case 'orange': return type === 'bg' ? 'bg-orange-500' : type === 'text' ? 'text-orange-500' : type === 'border' ? 'border-orange-500' : type === 'shadow' ? 'shadow-orange-500/20' : 'hover:bg-orange-600';
       case 'laguna':
-      default: return type === 'bg' ? 'bg-cyan-500' : type === 'text' ? 'text-cyan-500' : type === 'border' ? 'border-cyan-500' : 'hover:bg-cyan-600';
+      default: return type === 'bg' ? 'bg-cyan-500' : type === 'text' ? 'text-cyan-500' : type === 'border' ? 'border-cyan-500' : type === 'shadow' ? 'shadow-cyan-500/20' : 'hover:bg-cyan-600';
     }
   };
 
@@ -175,7 +175,7 @@ export default function AuthScreen({ theme, accentColor, onLoginSuccess }: AuthS
               <button
                 type="submit"
                 disabled={isLoading || mfaCode.length !== 6}
-                className={`w-full h-12 rounded-full font-medium text-white flex items-center justify-center gap-2 transition-all ${getAccentClass('bg')} ${getAccentClass('hover')} ${isLoading || mfaCode.length !== 6 ? 'opacity-70 cursor-not-allowed' : ''}`}
+                className={`w-full h-12 rounded-full font-medium text-white flex items-center justify-center gap-2 transition-all shadow-lg ${getAccentClass('bg')} ${getAccentClass('hover')} ${getAccentClass('shadow')} ${isLoading || mfaCode.length !== 6 ? 'opacity-70 cursor-not-allowed' : ''}`}
               >
                 {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Подтвердить'}
               </button>
@@ -277,7 +277,7 @@ export default function AuthScreen({ theme, accentColor, onLoginSuccess }: AuthS
             <button
               type="submit"
               disabled={isLoading || !email || !password}
-              className={`w-full h-12 rounded-full font-medium text-white flex items-center justify-center gap-2 transition-all ${getAccentClass('bg')} ${getAccentClass('hover')} ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+              className={`w-full h-12 rounded-full font-medium text-white flex items-center justify-center gap-2 transition-all shadow-lg ${getAccentClass('bg')} ${getAccentClass('hover')} ${getAccentClass('shadow')} ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
             >
               {isLoading ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
