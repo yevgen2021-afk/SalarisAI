@@ -1057,7 +1057,7 @@ export default function App() {
 
   if (!isLoaded || !isAuthReady) {
     return (
-      <div className={`flex h-screen items-center justify-center ${theme === 'dark' ? 'bg-[#050505]' : 'bg-[#f8f9fa]'}`}>
+      <div className={`flex h-[100dvh] items-center justify-center ${theme === 'dark' ? 'bg-[#050505]' : 'bg-[#f8f9fa]'}`}>
         <div className="w-8 h-8 rounded-full border-2 border-cyan-500 border-t-transparent animate-spin"></div>
       </div>
     );
@@ -1076,7 +1076,7 @@ export default function App() {
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      className={`flex h-screen ${theme === 'dark' ? 'bg-[#050505] text-white' : 'bg-white text-black'} font-sans selection:bg-red-500/30 overflow-hidden transition-colors duration-500 relative`}
+      className={`flex h-[100dvh] ${theme === 'dark' ? 'bg-[#050505] text-white' : 'bg-white text-black'} font-sans selection:bg-red-500/30 overflow-hidden transition-colors duration-500 relative`}
     >
       <Sidebar 
         isSidebarOpen={isSidebarOpen}
