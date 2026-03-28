@@ -14,6 +14,7 @@ interface ChatMessageProps {
   theme: 'dark' | 'light';
   isTyping?: boolean;
   accentColor: string;
+  isGlowEnabled?: boolean;
   onRegenerate?: (id: string) => void;
   onReport?: (id: string) => void;
   onLike?: (id: string) => void;

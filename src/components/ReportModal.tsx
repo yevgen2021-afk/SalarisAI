@@ -62,7 +62,7 @@ export default function ReportModal({ isOpen, onClose, onSubmit, theme, isSubmit
             exit={{ opacity: 0 }}
             onClick={onClose}
             style={{ willChange: "opacity" }}
-            className="absolute inset-0 bg-black/10 backdrop-blur-[2px]"
+            className="absolute inset-0 bg-black/10"
           />
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
@@ -74,7 +74,7 @@ export default function ReportModal({ isOpen, onClose, onSubmit, theme, isSubmit
               theme === 'dark' 
                 ? 'bg-black/40 border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.1)]' 
                 : 'bg-white/30 border-white/40 shadow-[0_0_15px_rgba(0,0,0,0.12)]'
-            } backdrop-blur-xl pointer-events-auto`}
+            } pointer-events-auto`}
           >
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">

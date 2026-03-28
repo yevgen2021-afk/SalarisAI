@@ -1057,7 +1057,7 @@ export default function App() {
 
   if (!isLoaded || !isAuthReady) {
     return (
-      <div className={`flex h-screen items-center justify-center ${theme === 'dark' ? 'bg-[#050505]' : 'bg-[#f8f9fa]'}`}>
+      <div className={`flex h-[100dvh] w-full items-center justify-center ${theme === 'dark' ? 'bg-[#050505]' : 'bg-[#f8f9fa]'}`}>
         <div className="w-8 h-8 rounded-full border-2 border-cyan-500 border-t-transparent animate-spin"></div>
       </div>
     );
@@ -1076,7 +1076,7 @@ export default function App() {
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      className={`flex h-screen ${theme === 'dark' ? 'bg-[#050505] text-white' : 'bg-white text-black'} font-sans selection:bg-red-500/30 overflow-hidden transition-colors duration-500 relative`}
+      className={`flex h-[100dvh] w-full ${theme === 'dark' ? 'bg-[#050505] text-white' : 'bg-white text-black'} font-sans selection:bg-red-500/30 overflow-hidden transition-colors duration-500 relative`}
     >
       <Sidebar 
         isSidebarOpen={isSidebarOpen}
@@ -1281,7 +1281,7 @@ export default function App() {
         <main 
           ref={chatContainerRef}
           onScroll={handleScroll}
-          className="flex-1 overflow-y-auto overflow-x-hidden px-4 md:px-10 pt-24 pb-24 md:pb-28 w-full max-w-5xl mx-auto flex flex-col"
+          className="flex-1 overflow-y-auto overflow-x-hidden overscroll-none px-4 md:px-10 pt-24 pb-24 md:pb-28 w-full max-w-5xl mx-auto flex flex-col"
         >
           {activeChat.messages.length === 0 ? (
             <AnimatePresence initial={false}>

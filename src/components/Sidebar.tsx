@@ -107,7 +107,7 @@ const Sidebar = React.memo(({
           )}
         </AnimatePresence>
       </div>
-      <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
+      <div className="flex-1 overflow-y-auto overscroll-none p-2 space-y-0.5">
         <AnimatePresence mode="popLayout">
           {filteredChats.map(chat => (
             <motion.div
