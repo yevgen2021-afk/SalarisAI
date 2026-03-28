@@ -14,13 +14,14 @@ interface ChatMessageProps {
   theme: 'dark' | 'light';
   isTyping?: boolean;
   accentColor: string;
+  isGlowEnabled?: boolean;
   onRegenerate?: (id: string) => void;
   onReport?: (id: string) => void;
   onLike?: (id: string) => void;
   onDislike?: (id: string) => void;
 }
 
-const ChatMessage = memo(({ id, role, content, images, theme, isTyping, accentColor, onRegenerate, onReport, onLike, onDislike }: ChatMessageProps) => {
+const ChatMessage = memo(({ id, role, content, images, theme, isTyping, accentColor, isGlowEnabled, onRegenerate, onReport, onLike, onDislike }: ChatMessageProps) => {
   const isUser = role === 'user';
   const [isCopied, setIsCopied] = useState(false);
   const [showActions, setShowActions] = useState(!isTyping);
