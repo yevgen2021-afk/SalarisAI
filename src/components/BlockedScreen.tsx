@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { AlertCircle, LogOut } from 'lucide-react';
+import { SalarisLogo } from './SalarisLogo';
 
 interface BlockedScreenProps {
   theme: 'dark' | 'light';
@@ -9,7 +10,7 @@ interface BlockedScreenProps {
 
 export default function BlockedScreen({ theme, onLogout }: BlockedScreenProps) {
   return (
-    <div className={`fixed inset-0 z-[200] flex items-center justify-center p-4 ${theme === 'dark' ? 'bg-[#0a0a0a]' : 'bg-white'}`}>
+    <div className={`fixed inset-0 z-[200] flex items-center justify-center p-4 ${theme === 'dark' ? 'bg-[#171717]' : 'bg-white'}`}>
       <motion.div 
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -24,7 +25,7 @@ export default function BlockedScreen({ theme, onLogout }: BlockedScreenProps) {
           Доступ ограничен
         </h2>
         <p className={`mb-8 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
-          Ваш аккаунт был заблокирован администрацией Salaris AI за нарушение правил использования сервиса.
+          Ваш аккаунт был заблокирован администрацией <SalarisLogo className="w-5 h-5 inline-block align-middle mx-1" />Salaris AI за нарушение правил использования сервиса.
         </p>
         <button
           onClick={onLogout}

@@ -72,8 +72,8 @@ export default function ReportModal({ isOpen, onClose, onSubmit, theme, isSubmit
             style={{ willChange: "transform, opacity" }}
             className={`relative w-full max-w-[400px] rounded-[2rem] overflow-hidden border ${
               theme === 'dark' 
-                ? 'bg-black/40 border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.1)]' 
-                : 'bg-white/30 border-white/40 shadow-[0_0_15px_rgba(0,0,0,0.12)]'
+                ? 'bg-black/40 border-white/10 shadow-[0_4px_40px_rgba(0,0,0,0.04)]' 
+                : 'bg-white/30 border-white/40 shadow-[0_4px_40px_rgba(0,0,0,0.08)]'
             } pointer-events-auto`}
           >
             <div className="p-6">

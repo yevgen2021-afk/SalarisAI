@@ -14,14 +14,13 @@ interface ChatMessageProps {
   theme: 'dark' | 'light';
   isTyping?: boolean;
   accentColor: string;
-  isGlowEnabled?: boolean;
   onRegenerate?: (id: string) => void;
   onReport?: (id: string) => void;
   onLike?: (id: string) => void;
   onDislike?: (id: string) => void;
 }
 
-const ChatMessage = memo(({ id, role, content, images, theme, isTyping, accentColor, isGlowEnabled, onRegenerate, onReport, onLike, onDislike }: ChatMessageProps) => {
+const ChatMessage = memo(({ id, role, content, images, theme, isTyping, accentColor, onRegenerate, onReport, onLike, onDislike }: ChatMessageProps) => {
   const isUser = role === 'user';
   const [isCopied, setIsCopied] = useState(false);
   const [showActions, setShowActions] = useState(!isTyping);
@@ -31,7 +30,9 @@ const ChatMessage = memo(({ id, role, content, images, theme, isTyping, accentCo
     let actionTimer: NodeJS.Timeout;
 
     if (prevIsTyping.current === true && isTyping === false) {
-      actionTimer = setTimeout(() => setShowActions(true), 1500);
+      actionTimer = setTimeout(() => {
+        setShowActions(true);
+      }, 500);
     } else if (isTyping) {
       setShowActions(false);
     }
@@ -50,18 +51,6 @@ const ChatMessage = memo(({ id, role, content, images, theme, isTyping, accentCo
     setTimeout(() => setIsCopied(false), 2000);
   };
   
-  const getAccentTextClass = () => {
-    switch (accentColor) {
-      case 'pink': return 'text-pink-500';
-      case 'purple': return 'text-purple-500';
-      case 'emerald': return 'text-emerald-500';
-      case 'red': return 'text-red-500';
-      case 'orange': return 'text-orange-500';
-      case 'laguna':
-      default: return 'text-cyan-500';
-    }
-  };
-
   const getAccentClasses = () => {
     switch (accentColor) {
       case 'pink': return 'bg-pink-400 shadow-pink-400/20';
@@ -69,8 +58,8 @@ const ChatMessage = memo(({ id, role, content, images, theme, isTyping, accentCo
       case 'emerald': return 'bg-emerald-400 shadow-emerald-400/20';
       case 'red': return 'bg-red-500 shadow-red-500/20';
       case 'orange': return 'bg-orange-500 shadow-orange-500/20';
-      case 'laguna':
-      default: return 'bg-cyan-500 shadow-cyan-500/20';
+      case 'sky':
+      default: return 'bg-[#007AFF] shadow-[#007AFF]/20';
     }
   };
 
@@ -140,27 +129,21 @@ const ChatMessage = memo(({ id, role, content, images, theme, isTyping, accentCo
       style={{ transformOrigin: 'center' }}
       className={`flex w-full ${isUser ? 'justify-end' : 'justify-start'} mb-12 group`}
     >
-      <div className="relative max-w-[85%] md:max-w-[75%] w-fit">
+      <div className={`relative ${isUser ? 'max-w-[85%] md:max-w-[75%] w-fit' : 'w-full'}`}>
         <div className="relative">
           {/* Message Content */}
-          <AnimatePresence mode="wait">
-              <motion.div
-                key="text"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className={`relative z-10 px-4 py-2.5 rounded-[2rem] font-sans backdrop-blur-xl backdrop-saturate-150 ${
-                  isUser 
-                    ? `${getAccentClasses()} shadow-sm` 
-                    : (theme === 'dark' 
-                        ? 'bg-black/40 border border-white/20 text-white shadow-[0_0_15px_rgba(0,0,0,0.1)]' 
-                        : 'bg-white/60 border border-white/40 text-black shadow-[0_0_15px_rgba(0,0,0,0.12)]')
-                } transition-all duration-300`}
-              >
-                <ReactMarkdown 
-                  urlTransform={(url) => url}
-                  remarkPlugins={[remarkGfm]}
-                  components={markdownComponents}
-                >
+          <div
+            className={`relative z-10 font-sans transition-colors duration-300 ${
+              isUser 
+                ? `px-4 py-2.5 rounded-[2rem] backdrop-blur-xl backdrop-saturate-150 ${getAccentClasses()} shadow-sm` 
+                : `py-1 ${theme === 'dark' ? 'text-white' : 'text-black'}`
+            }`}
+          >
+            <ReactMarkdown 
+              urlTransform={(url) => url}
+              remarkPlugins={[remarkGfm]}
+              components={markdownComponents}
+            >
               {content}
             </ReactMarkdown>
             {images && images.length > 0 && (
@@ -170,61 +153,60 @@ const ChatMessage = memo(({ id, role, content, images, theme, isTyping, accentCo
                 ))}
               </div>
             )}
-          </motion.div>
-        </AnimatePresence>
+          </div>
         </div>
 
         {/* Action Icons */}
         {!isUser && (
-          <div className={`absolute top-full left-2 mt-2 flex items-center gap-2 transition-opacity duration-500 z-20 ${showActions ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-            <div className="flex items-center gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200">
+          <div className={`absolute top-full left-0 mt-2 flex items-center gap-3 transition-opacity duration-500 z-20 ${showActions ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+            <div className="flex items-center gap-3 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200">
               <motion.button 
-                whileHover={{ scale: 1.15 }}
-                whileTap={{ scale: 1.1 }}
+                whileHover={{ scale: 1.15, y: -2 }}
+                whileTap={{ scale: 1.05 }}
                 onClick={() => onLike?.(id)}
-                className={`p-1.5 rounded-full transition-colors backdrop-blur-xl backdrop-saturate-150 ${theme === 'dark' ? 'bg-black/40 border border-white/20 text-white hover:text-emerald-400 shadow-[0_0_15px_rgba(0,0,0,0.1)]' : 'bg-white/60 border border-white/40 text-black hover:text-emerald-600 shadow-[0_0_15px_rgba(0,0,0,0.12)]'}`}
+                className={`p-1 transition-colors ${theme === 'dark' ? 'text-white/40 hover:text-emerald-400' : 'text-black/40 hover:text-emerald-600'}`}
                 title="Лайк"
               >
-                <ThumbsUp className="w-3.5 h-3.5" />
+                <ThumbsUp className="w-5 h-5" strokeWidth={1.5} />
               </motion.button>
               <motion.button 
-                whileHover={{ scale: 1.15 }}
-                whileTap={{ scale: 1.1 }}
+                whileHover={{ scale: 1.15, y: -2 }}
+                whileTap={{ scale: 1.05 }}
                 onClick={() => onDislike?.(id)}
-                className={`p-1.5 rounded-full transition-colors backdrop-blur-xl backdrop-saturate-150 ${theme === 'dark' ? 'bg-black/40 border border-white/20 text-white hover:text-orange-400 shadow-[0_0_15px_rgba(0,0,0,0.1)]' : 'bg-white/60 border border-white/40 text-black hover:text-orange-600 shadow-[0_0_15px_rgba(0,0,0,0.12)]'}`}
+                className={`p-1 transition-colors ${theme === 'dark' ? 'text-white/40 hover:text-orange-400' : 'text-black/40 hover:text-orange-600'}`}
                 title="Дизлайк"
               >
-                <ThumbsDown className="w-3.5 h-3.5" />
+                <ThumbsDown className="w-5 h-5" strokeWidth={1.5} />
               </motion.button>
               <motion.button 
-                whileHover={{ scale: 1.15 }}
-                whileTap={{ scale: 1.1 }}
+                whileHover={{ scale: 1.15, y: -2 }}
+                whileTap={{ scale: 1.05 }}
                 onClick={handleCopy}
-                className={`p-1.5 rounded-full transition-colors backdrop-blur-xl backdrop-saturate-150 ${theme === 'dark' ? 'bg-black/40 border border-white/20 text-white hover:text-white shadow-[0_0_15px_rgba(0,0,0,0.1)]' : 'bg-white/60 border border-white/40 text-black hover:text-black shadow-[0_0_15px_rgba(0,0,0,0.12)]'}`}
+                className={`p-1 transition-colors ${theme === 'dark' ? 'text-white/40 hover:text-white' : 'text-black/40 hover:text-black'}`}
                 title="Копировать"
               >
-                {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                {isCopied ? <Check className="w-5 h-5 text-emerald-500" strokeWidth={1.5} /> : <Copy className="w-5 h-5" strokeWidth={1.5} />}
               </motion.button>
               {onRegenerate && (
                 <motion.button 
-                  whileHover={{ scale: 1.15 }}
-                  whileTap={{ scale: 1.1 }}
+                  whileHover={{ scale: 1.15, y: -2 }}
+                  whileTap={{ scale: 1.05 }}
                   onClick={() => onRegenerate(id)}
-                  className={`p-1.5 rounded-full transition-colors backdrop-blur-xl backdrop-saturate-150 ${theme === 'dark' ? 'bg-black/40 border border-white/20 text-white hover:text-white shadow-[0_0_15px_rgba(0,0,0,0.1)]' : 'bg-white/60 border border-white/40 text-black hover:text-black shadow-[0_0_15px_rgba(0,0,0,0.12)]'}`}
+                  className={`p-1 transition-colors ${theme === 'dark' ? 'text-white/40 hover:text-white' : 'text-black/40 hover:text-black'}`}
                   title="Переделать ответ"
                 >
-                  <RefreshCw className="w-3.5 h-3.5" />
+                  <RefreshCw className="w-5 h-5" strokeWidth={1.5} />
                 </motion.button>
               )}
               {onReport && (
                 <motion.button 
-                  whileHover={{ scale: 1.15 }}
-                  whileTap={{ scale: 1.1 }}
+                  whileHover={{ scale: 1.15, y: -2 }}
+                  whileTap={{ scale: 1.05 }}
                   onClick={() => onReport(id)}
-                  className={`p-1.5 rounded-full transition-colors backdrop-blur-xl backdrop-saturate-150 ${theme === 'dark' ? 'bg-black/40 border border-white/20 text-white hover:text-red-400 shadow-[0_0_15px_rgba(0,0,0,0.1)]' : 'bg-white/60 border border-white/40 text-black hover:text-red-500 shadow-[0_0_15px_rgba(0,0,0,0.12)]'}`}
+                  className={`p-1 transition-colors ${theme === 'dark' ? 'text-white/40 hover:text-red-400' : 'text-black/40 hover:text-red-500'}`}
                   title="Сообщить об ошибке"
                 >
-                  <AlertCircle className="w-3.5 h-3.5" />
+                  <AlertCircle className="w-5 h-5" strokeWidth={1.5} />
                 </motion.button>
               )}
             </div>
@@ -235,13 +217,13 @@ const ChatMessage = memo(({ id, role, content, images, theme, isTyping, accentCo
         {isUser && (
           <div className="absolute top-full right-2 mt-2 flex items-center gap-2 z-20 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200">
             <motion.button 
-              whileHover={{ scale: 1.15 }}
-              whileTap={{ scale: 1.1 }}
+              whileHover={{ scale: 1.15, y: -2 }}
+              whileTap={{ scale: 1.05 }}
               onClick={handleCopy}
-              className={`p-1.5 rounded-full transition-colors backdrop-blur-xl backdrop-saturate-150 ${theme === 'dark' ? 'bg-black/40 border border-white/20 text-white hover:text-white shadow-[0_0_15px_rgba(0,0,0,0.1)]' : 'bg-white/60 border-white/40 text-black hover:text-black shadow-[0_0_15px_rgba(0,0,0,0.12)]'}`}
+              className={`p-1 transition-colors ${theme === 'dark' ? 'text-white/40 hover:text-white' : 'text-black/40 hover:text-black'}`}
               title="Копировать"
             >
-              {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+              {isCopied ? <Check className="w-5 h-5 text-emerald-500" strokeWidth={1.5} /> : <Copy className="w-5 h-5" strokeWidth={1.5} />}
             </motion.button>
           </div>
         )}
